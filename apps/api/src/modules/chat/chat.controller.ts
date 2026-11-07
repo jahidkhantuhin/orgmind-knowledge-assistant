@@ -247,7 +247,13 @@ export const streamChatController: RequestHandler = async (req, res) => {
         maxOutputTokens: 900,
         onError: ({ error }) => logger.error({ err: error }, 'Chat model stream failed'),
       });
-      writer.merge(result.toUIMessageStream({ sendStart: false }));
+      writer.merge(
+        result.toUIMessageStream({
+          sendStart: false,
+          onError: () =>
+            `The configured model (${env.CHAT_MODEL}) could not generate an answer. Check that the model is available to your Google AI project and that its quota is available.`,
+        }),
+      );
     },
     onError: (error) => {
       logger.error({ err: error, conversationId: conversation._id }, 'Chat stream failed');
