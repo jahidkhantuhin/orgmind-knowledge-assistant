@@ -33,3 +33,13 @@
 - Updated local MongoDB to Atlas Local `preview`, which bundles MongoDB Search and Vector Search, and added mocked chunker/provider tests.
 - **Delay encountered:** Gemini returned HTTP 429 after the free-tier embedding token-per-minute quota was exceeded. The UI stays on “Embedding” while the provider backs off. The provider already retries transient and rate-limit errors up to five times, waiting at least 65 seconds for per-minute token limits; BullMQ can retry the ingestion job up to three times. If the quota remains exhausted, processing eventually fails. **Workaround:** wait for quota to reset or use a Gemini plan with sufficient quota, then reprocess the document. No quota increase or billing change was made in the project.
 - **Local log workflow:** Added an optional Compose `app` profile for running the API and web app as containers. Pino continues to emit structured API logs; `docker compose logs` can follow or filter them. The Compose local log driver retains up to three 10 MB files per service. The existing host-based `pnpm dev` workflow remains available; see the README for Windows PowerShell commands.
+
+## Step 5: Streaming, document-grounded chat
+
+- Added an authenticated assistant page with conversation history, new/rename/delete actions, streamed answers, and responsive dark-mode styling.
+- Added MongoDB conversation and message collections with user/organization-scoped access and indexes. Each conversation can load up to 200 prior messages; recent context sent to the model is capped at 20 messages.
+- Added organization-filtered MongoDB `$vectorSearch` retrieval using the existing Gemini query embedding provider. Retrieval returns up to `CHAT_TOP_K` passages; results below `CHAT_MIN_RELEVANCE_SCORE` are omitted, and no matching sources produces a fixed “I don't know” response.
+- Added AI SDK `ai@7.0.163` and `@ai-sdk/google@4.0.112` model/UI streaming with source citations carried in the UI stream. Answers are stored after streaming completes, and citations open a source passage preview with a link to the document.
+- Added retrieval tests covering organization-scoped document lookup, relevance filtering, citation formatting, and empty-result behavior.
+- Configure `GOOGLE_API_KEY` and optionally `CHAT_MODEL`, `CHAT_TOP_K`, and `CHAT_MIN_RELEVANCE_SCORE` in `.env`. The default chat model is `gemini-2.5-flash`.
+- To try it locally, run `pnpm db:migrate`, start the existing services, sign in, open **Assistant**, and ask about a processed document. Existing organization documents must have completed embedding and the MongoDB vector index must be READY.

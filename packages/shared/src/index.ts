@@ -161,6 +161,80 @@ export const OrganizationDocumentsResponseSchema = z.object({
 });
 export type OrganizationDocumentsResponse = z.infer<typeof OrganizationDocumentsResponseSchema>;
 
+export const ConversationRecordSchema = z.object({
+  _id: z.string().uuid(),
+  organizationId: z.string().min(1),
+  userId: z.string().min(1),
+  title: z.string().trim().min(1).max(120),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+export type ConversationRecord = z.infer<typeof ConversationRecordSchema>;
+
+export const ConversationSummarySchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string(),
+  title: z.string(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type ConversationSummary = z.infer<typeof ConversationSummarySchema>;
+
+export const ConversationListResponseSchema = z.object({
+  conversations: z.array(ConversationSummarySchema),
+});
+export type ConversationListResponse = z.infer<typeof ConversationListResponseSchema>;
+
+export const ChatCitationSchema = z.object({
+  chunkId: z.string(),
+  documentId: z.string().uuid(),
+  documentName: z.string(),
+  chunkIndex: z.number().int().nonnegative(),
+  headingPath: z.array(z.string()),
+  passage: z.string().min(1),
+  score: z.number().min(0).max(1),
+});
+export type ChatCitation = z.infer<typeof ChatCitationSchema>;
+
+export const ChatMessageRecordSchema = z.object({
+  _id: z.string().uuid(),
+  organizationId: z.string().min(1),
+  conversationId: z.string().uuid(),
+  userId: z.string().min(1),
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+  citations: z.array(ChatCitationSchema).default([]),
+  createdAt: z.date(),
+});
+export type ChatMessageRecord = z.infer<typeof ChatMessageRecordSchema>;
+
+export const ChatMessageResponseSchema = z.object({
+  id: z.string().uuid(),
+  role: z.enum(['user', 'assistant']),
+  content: z.string(),
+  citations: z.array(ChatCitationSchema),
+  createdAt: z.string().datetime(),
+});
+export type ChatMessageResponse = z.infer<typeof ChatMessageResponseSchema>;
+
+export const ConversationMessagesResponseSchema = z.object({
+  conversation: ConversationSummarySchema,
+  messages: z.array(ChatMessageResponseSchema),
+});
+export type ConversationMessagesResponse = z.infer<typeof ConversationMessagesResponseSchema>;
+
+export const CreateConversationSchema = z.object({
+  organizationId: z.string().min(1),
+});
+export const RenameConversationSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+});
+export const ChatRequestSchema = z.object({
+  organizationId: z.string().min(1),
+  conversationId: z.string().uuid(),
+  messages: z.array(z.unknown()).min(1).max(40),
+});
+
 export const DocumentChunkSchema = z.object({
   _id: z.string().min(1),
   documentId: z.string().uuid(),

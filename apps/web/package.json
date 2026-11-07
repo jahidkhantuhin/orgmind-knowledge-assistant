@@ -12,8 +12,10 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
+    "@ai-sdk/react": "4.0.168",
     "@orgmind/shared": "workspace:*",
     "@tanstack/react-query": "5.90.5",
+    "ai": "7.0.163",
     "next": "16.4.5",
     "react": "19.2.0",
     "react-dom": "19.2.0",

@@ -22,6 +22,14 @@ Parsed documents are split into overlapping, heading-aware chunks while keeping 
 
 **Development logging note:** Pino emits structured API logs. The optional Compose `app` profile runs the API and web app as containers so their logs can be listed, followed, or filtered with `docker compose logs`; local log storage is bounded to three 10 MB files per service.
 
+## Step 5: Streaming, document-grounded chat
+
+Open **Assistant** from the workspace to ask questions about processed documents. Each answer streams as it is generated and includes source citations; selecting a citation previews its passage and links to the source document. Conversations can be created, renamed, reopened, and deleted. History is private to the signed-in user within their organization.
+
+The API uses Vercel AI SDK `ai@7.0.163` and Google provider `@ai-sdk/google@4.0.112`. It embeds each question using the existing Gemini query-embedding provider, then runs a MongoDB `$vectorSearch` filtered to the active organization and default collection. Up to `CHAT_TOP_K` relevant passages are supplied to the configured Google model. Results below `CHAT_MIN_RELEVANCE_SCORE` are excluded; when no eligible passage remains, the assistant returns a clear “I don't know” response. The model is instructed to use only the retrieved passages and cite factual claims. Recent conversation history is sent as context (up to 20 messages), while MongoDB retains and returns up to 200 messages per conversation.
+
+Set `GOOGLE_API_KEY` in `.env` for both question embeddings and answer generation. `CHAT_MODEL` defaults to `gemini-2.5-flash`; `CHAT_TOP_K` defaults to `5` (allowed range: 1–20); `CHAT_MIN_RELEVANCE_SCORE` defaults to `0.45` (allowed range: 0–1). The chat storage indexes are applied by `pnpm db:migrate`. The MongoDB Vector Search index must also be READY, and at least one document must be fully processed before document-grounded answers can be retrieved.
+
 ## Quick start
 
 Requirements: Node.js 22.13+, pnpm 11.28+, and Docker Compose.
@@ -57,7 +65,7 @@ docker compose --profile app logs --follow --tail=200 --no-log-prefix api | Sele
 
 Use `web`, `mongodb`, or `redis` in place of `api` to view another service. Compose keeps bounded local logs (up to three 10 MB files per service). API logs remain structured Pino JSON, and no extra logging library is needed. Stop the Compose development stack with `docker compose --profile app down`; named data volumes are preserved.
 
-Open **Knowledge base** in the workspace navigation to add documents. Local uploads are stored under the API process working directory at `.data/uploads` by default and are not committed. Add a Gemini API key to `.env` before uploading, then open a document to see its chunks and reprocess it.
+Open **Knowledge base** in the workspace navigation to add documents. Local uploads are stored under the API process working directory at `.data/uploads` by default and are not committed. Add a Gemini API key to `.env` before uploading, then open a document to see its chunks and reprocess it. Open **Assistant** to query the processed material and inspect the citations returned with answers.
 
 ## Workspace
 

@@ -6,6 +6,7 @@ import { organizationsRepository } from '../../modules/organizations/organizatio
 import { usersRepository } from '../../modules/users/users.repository.js';
 import { documentsRepository } from '../../modules/documents/documents.repository.js';
 import { chunksRepository } from '../../modules/documents/chunks.repository.js';
+import { chatRepository } from '../../modules/chat/chat.repository.js';
 
 export async function runMigrations(): Promise<void> {
   const database = getDatabase();
@@ -40,6 +41,7 @@ export async function runMigrations(): Promise<void> {
     documentsRepository.ensureIndexes(),
   );
   await applyMigration(migrations, '003-chunk-indexes', () => chunksRepository.ensureIndexes());
+  await applyMigration(migrations, '004-chat-indexes', () => chatRepository.ensureIndexes());
 }
 
 async function applyMigration(

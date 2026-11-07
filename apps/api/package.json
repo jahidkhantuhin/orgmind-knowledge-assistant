@@ -16,9 +16,11 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ai-sdk/google": "4.0.112",
     "@better-auth/mongo-adapter": "1.7.18",
     "@google/genai": "2.31.0",
     "@orgmind/shared": "workspace:*",
+    "ai": "7.0.163",
     "better-auth": "1.7.18",
     "bullmq": "5.81.5",
     "cors": "2.8.5",

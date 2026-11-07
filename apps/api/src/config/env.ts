@@ -36,6 +36,9 @@ const EnvSchema = z
       .max(12 * 1024 * 1024)
       .default(3 * 1024 * 1024),
     GOOGLE_API_KEY: z.string().default(''),
+    CHAT_MODEL: z.string().min(1).default('gemini-2.5-flash'),
+    CHAT_TOP_K: z.coerce.number().int().min(1).max(20).default(5),
+    CHAT_MIN_RELEVANCE_SCORE: z.coerce.number().min(0).max(1).default(0.45),
     EMBEDDING_MODEL: z.string().min(1).default('gemini-embedding-001'),
     EMBEDDING_DIMENSIONS: z.coerce
       .number()

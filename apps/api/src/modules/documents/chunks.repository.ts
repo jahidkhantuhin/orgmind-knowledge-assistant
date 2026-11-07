@@ -7,6 +7,14 @@ import {
 } from '@orgmind/shared';
 import { env } from '../../config/env.js';
 import { getDatabase } from '../../lib/connections.js';
+import { CHUNKS_VECTOR_INDEX_NAME } from '../../db/search-index-definitions.js';
+
+export type SimilarChunk = Pick<
+  DocumentChunk,
+  '_id' | 'documentId' | 'chunkIndex' | 'text' | 'headingPath'
+> & {
+  score: number;
+};
 
 type StoredChunk = Omit<DocumentChunk, 'embedding'> & { embedding: Binary } & Document;
 
@@ -98,5 +106,46 @@ export const chunksRepository = {
       nextCursor: hasMore ? (page.at(-1)?.chunkIndex ?? null) : null,
       hasMore,
     };
+  },
+
+  async searchSimilar(
+    queryVector: readonly number[],
+    organizationId: string,
+    limit: number,
+  ): Promise<SimilarChunk[]> {
+    const rows = await chunks()
+      .aggregate<{
+        _id: string;
+        documentId: string;
+        chunkIndex: number;
+        text: string;
+        headingPath: string[];
+        score: number;
+      }>([
+        {
+          $vectorSearch: {
+            index: CHUNKS_VECTOR_INDEX_NAME,
+            path: 'embedding',
+            queryVector: [...queryVector],
+            numCandidates: Math.max(100, limit * 20),
+            limit,
+            filter: {
+              $and: [{ orgId: organizationId }, { collectionId: 'default' }],
+            },
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            documentId: 1,
+            chunkIndex: 1,
+            text: 1,
+            headingPath: 1,
+            score: { $meta: 'vectorSearchScore' },
+          },
+        },
+      ])
+      .toArray();
+    return rows;
   },
 };

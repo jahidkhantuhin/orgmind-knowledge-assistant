@@ -33,6 +33,15 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
             <span className="nav-label">Overview</span>
           </a>
           <Link
+            className="nav-link muted"
+            href="/chat"
+            aria-label="Knowledge assistant"
+            title="Knowledge assistant"
+          >
+            <span aria-hidden="true">✳</span>
+            <span className="nav-label">Assistant</span>
+          </Link>
+          <Link
             className="nav-link knowledge-nav-link muted"
             href="/knowledge"
             aria-label="Knowledge base"
@@ -98,9 +107,9 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
                 OrgMind brings your company knowledge together, so your team can focus on what
                 matters next.
               </p>
-              <button className="primary-button">
+              <Link className="primary-button" href="/chat">
                 Start a conversation <span>→</span>
-              </button>
+              </Link>
             </div>
             <div className="hero-art" aria-hidden="true">
               <div className="orbit orbit-one" />

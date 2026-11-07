@@ -42,6 +42,14 @@ export const documentsRepository = {
     return row ? parseDocument(row) : null;
   },
 
+  async findByIdsInOrganization(ids: string[], organizationId: string): Promise<DocumentRecord[]> {
+    if (ids.length === 0) return [];
+    const rows = await documents()
+      .find({ _id: { $in: ids }, organizationId })
+      .toArray();
+    return rows.map(parseDocument);
+  },
+
   async listByOrganization(organizationId: string): Promise<DocumentRecord[]> {
     const rows = await documents().find({ organizationId }).sort({ createdAt: -1 }).toArray();
     return rows.map(parseDocument);
