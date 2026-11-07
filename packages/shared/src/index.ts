@@ -185,6 +185,22 @@ export const ConversationListResponseSchema = z.object({
 });
 export type ConversationListResponse = z.infer<typeof ConversationListResponseSchema>;
 
+export const RetrievalDebugSchema = z.object({
+  vectorRank: z.number().int().positive().nullable(),
+  vectorScore: z.number().nullable(),
+  keywordRank: z.number().int().positive().nullable(),
+  keywordScore: z.number().nullable(),
+  fusedScore: z.number().min(0),
+});
+export type RetrievalDebug = z.infer<typeof RetrievalDebugSchema>;
+
+export const RetrievalDebugChunkSchema = RetrievalDebugSchema.extend({
+  chunkId: z.string(),
+  documentName: z.string(),
+  chunkIndex: z.number().int().nonnegative(),
+});
+export type RetrievalDebugChunk = z.infer<typeof RetrievalDebugChunkSchema>;
+
 export const ChatCitationSchema = z.object({
   chunkId: z.string(),
   documentId: z.string().uuid(),
@@ -193,6 +209,7 @@ export const ChatCitationSchema = z.object({
   headingPath: z.array(z.string()),
   passage: z.string().min(1),
   score: z.number().min(0).max(1),
+  retrievalDebug: RetrievalDebugSchema.optional(),
 });
 export type ChatCitation = z.infer<typeof ChatCitationSchema>;
 
@@ -224,6 +241,7 @@ export const ChatMessageRecordSchema = z.object({
   role: z.enum(['user', 'assistant']),
   content: z.string(),
   citations: z.array(ChatCitationSchema).default([]),
+  retrievalDebug: z.array(RetrievalDebugChunkSchema).default([]),
   createdAt: z.date(),
 });
 export type ChatMessageRecord = z.infer<typeof ChatMessageRecordSchema>;
@@ -233,6 +251,7 @@ export const ChatMessageResponseSchema = z.object({
   role: z.enum(['user', 'assistant']),
   content: z.string(),
   citations: z.array(ChatCitationSchema),
+  retrievalDebug: z.array(RetrievalDebugChunkSchema).default([]),
   createdAt: z.string().datetime(),
 });
 export type ChatMessageResponse = z.infer<typeof ChatMessageResponseSchema>;

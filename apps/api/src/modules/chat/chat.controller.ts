@@ -9,6 +9,7 @@ import {
   ChatMessageResponseSchema,
   CreateConversationSchema,
   RenameConversationSchema,
+  type RetrievalDebugChunk,
 } from '@orgmind/shared';
 import {
   createUIMessageStream,
@@ -22,7 +23,7 @@ import { env } from '../../config/env.js';
 import { logger } from '../../lib/logger.js';
 import { chatRepository } from './chat.repository.js';
 import { chatModelProvider } from './chat-model.provider.js';
-import { vectorRetrievalService } from './retrieval.service.js';
+import { retrievalService } from './retrieval.service.js';
 import { LOW_CONFIDENCE_ANSWER, buildGroundedSystemPrompt } from './prompt.builder.js';
 
 function routeParam(value: string | string[] | undefined): string | undefined {
@@ -47,6 +48,7 @@ function toMessageResponse(record: Awaited<ReturnType<typeof chatRepository.addM
     role: record.role,
     content: record.content,
     citations: citationsReferencedInAnswer(record.content, record.citations),
+    retrievalDebug: record.retrievalDebug,
     createdAt: record.createdAt.toISOString(),
   });
 }
@@ -222,7 +224,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
     citations: [],
   });
   const priorMessages = await chatRepository.listMessages(conversation._id);
-  const retrieval = await vectorRetrievalService.retrieve(question, organizationId);
+  const retrieval = await retrievalService.retrieve(question, organizationId);
   const isLowConfidence = retrieval.citations.length === 0;
   const citations = retrieval.citations;
   const modelMessages: ModelMessage[] = priorMessages.slice(-20).map((message) => ({
@@ -230,10 +232,13 @@ export const streamChatController: RequestHandler = async (req, res) => {
     content: message.content,
   }));
   const responseMessageId = randomUUID();
-  const stream = createUIMessageStream<UIMessage<unknown, { citations: ChatCitation[] }>>({
+  const stream = createUIMessageStream<
+    UIMessage<unknown, { citations: ChatCitation[]; 'retrieval-debug': RetrievalDebugChunk[] }>
+  >({
     execute: async ({ writer }) => {
       writer.write({ type: 'start', messageId: responseMessageId });
       writer.write({ type: 'data-citations', data: citations });
+      writer.write({ type: 'data-retrieval-debug', data: retrieval.debug });
       if (isLowConfidence) {
         writer.write({ type: 'text-start', id: responseMessageId });
         writer.write({ type: 'text-delta', id: responseMessageId, delta: LOW_CONFIDENCE_ANSWER });
@@ -274,6 +279,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
         role: 'assistant',
         content,
         citations: usedCitations,
+        retrievalDebug: retrieval.debug,
       });
     },
   });

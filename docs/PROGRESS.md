@@ -44,3 +44,12 @@
 - Configure `GOOGLE_API_KEY` and optionally `CHAT_MODEL`, `CHAT_TOP_K`, and `CHAT_MIN_RELEVANCE_SCORE` in `.env`. The default chat model is `gemini-3.5-flash-lite`.
 - Updated the chat model default after Gemini 2.5 access was restricted for new projects and Gemini 3.8 Flash returned a temporary 503 high-demand error during verification. A minimal Vercel AI SDK generation request succeeded with Gemini 3.5 Flash-Lite. Streamed model errors now give a model-access/quota hint instead of the generic “An error occurred” message.
 - To try it locally, run `pnpm db:migrate`, start the existing services, sign in, open **Assistant**, and ask about a processed document. Existing organization documents must have completed embedding and the MongoDB vector index must be READY.
+
+## Step 6: Hybrid retrieval
+
+- Added a retrieval strategy interface selected by `CHAT_RETRIEVAL_STRATEGY`, keeping the Step 5 vector-only path available and making MongoDB hybrid retrieval the default.
+- Added MongoDB `$rankFusion` over organization-filtered `$vectorSearch` and BM25 `$search` pipelines. `CHAT_VECTOR_SEARCH_WEIGHT` and `CHAT_KEYWORD_SEARCH_WEIGHT` configure their relative contribution (defaults: `0.7` and `0.3`).
+- Added per-result vector and keyword ranks/scores plus the fused score to development-only Retrieval debug details in each chat answer. Debug results are saved with assistant messages and loaded with conversation history.
+- Pinned Atlas Local in Docker Compose to `mongodb-atlas-local:8.3.9`; MongoDB `$rankFusion` requires version 8.0 or later, and this image provides the Search and Vector Search services used by the existing indexes.
+- Added unit coverage for the hybrid aggregation pipeline and an opt-in local MongoDB integration test that creates temporary indexes and fixture data. The integration test skips when MongoDB cannot be reached.
+- Configure `CHAT_RETRIEVAL_STRATEGY`, `CHAT_VECTOR_SEARCH_WEIGHT`, and `CHAT_KEYWORD_SEARCH_WEIGHT` in `.env`. See the README for image upgrade commands and verification steps.

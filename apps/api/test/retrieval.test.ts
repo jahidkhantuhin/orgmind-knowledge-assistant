@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createVectorRetrievalService } from '../src/modules/chat/retrieval.service.js';
+import {
+  createConfiguredRetrievalService,
+  createVectorRetrievalService,
+} from '../src/modules/chat/retrieval.service.js';
 
 describe('vector retrieval service', () => {
   it('embeds the query, searches within the organization, filters weak matches, and builds citations', async () => {
@@ -70,7 +73,62 @@ describe('vector retrieval service', () => {
 
     await expect(service.retrieve('A question', 'org-1')).resolves.toEqual({
       citations: [],
+      debug: [],
       context: '',
     });
+  });
+
+  it('uses the configured hybrid strategy and returns per-chunk retrieval details', async () => {
+    const hybridSearch = vi.fn(async () => [
+      {
+        _id: 'chunk-hybrid',
+        documentId: '00000000-0000-4000-8000-000000000003',
+        chunkIndex: 4,
+        text: 'The policy retains invoices for seven years.',
+        headingPath: ['Finance'],
+        score: 0.02,
+        retrievalDebug: {
+          vectorRank: 2,
+          vectorScore: 0.87,
+          keywordRank: 1,
+          keywordScore: 3.4,
+          fusedScore: 0.02,
+        },
+      },
+    ]);
+    const service = createConfiguredRetrievalService({
+      embed: async () => [0.1, 0.9],
+      search: async () => [],
+      hybridSearch,
+      findDocuments: async () => [
+        {
+          _id: '00000000-0000-4000-8000-000000000003',
+          originalName: 'Finance policy.pdf',
+        },
+      ],
+      limit: 5,
+      minimumScore: 0.45,
+      strategy: 'hybrid',
+      weights: { vector: 0.7, keyword: 0.3 },
+    });
+
+    const result = await service.retrieve('invoice retention', 'org-1');
+
+    expect(hybridSearch).toHaveBeenCalledWith('invoice retention', [0.1, 0.9], 'org-1', 5, {
+      vector: 0.7,
+      keyword: 0.3,
+    });
+    expect(result.debug).toEqual([
+      {
+        chunkId: 'chunk-hybrid',
+        documentName: 'Finance policy.pdf',
+        chunkIndex: 4,
+        vectorRank: 2,
+        vectorScore: 0.87,
+        keywordRank: 1,
+        keywordScore: 3.4,
+        fusedScore: 0.02,
+      },
+    ]);
   });
 });

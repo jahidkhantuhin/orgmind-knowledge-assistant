@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   ChatCitationSchema,
+  RetrievalDebugChunkSchema,
   citationsReferencedInAnswer,
   ConversationListResponseSchema,
   ConversationMessagesResponseSchema,
   ConversationSummarySchema,
   type ChatCitation,
+  type RetrievalDebugChunk,
   type ConversationSummary,
 } from '@orgmind/shared';
 import { ThemeToggle } from './theme-toggle';
@@ -17,7 +19,11 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 type OrgMindMessage = {
   id: string;
   role: 'user' | 'assistant';
-  parts: ({ type: 'text'; text: string } | { type: 'data-citations'; data: ChatCitation[] })[];
+  parts: (
+    | { type: 'text'; text: string }
+    | { type: 'data-citations'; data: ChatCitation[] }
+    | { type: 'data-retrieval-debug'; data: RetrievalDebugChunk[] }
+  )[];
 };
 
 function toUiMessages(
@@ -26,6 +32,7 @@ function toUiMessages(
     role: 'user' | 'assistant';
     content: string;
     citations: ChatCitation[];
+    retrievalDebug: RetrievalDebugChunk[];
   }[],
 ): OrgMindMessage[] {
   return messages.map((message) => ({
@@ -35,6 +42,9 @@ function toUiMessages(
       { type: 'text', text: message.content },
       ...(message.role === 'assistant' && message.citations.length > 0
         ? [{ type: 'data-citations' as const, data: message.citations }]
+        : []),
+      ...(message.role === 'assistant' && message.retrievalDebug.length > 0
+        ? [{ type: 'data-retrieval-debug' as const, data: message.retrievalDebug }]
         : []),
     ],
   }));
@@ -360,6 +370,7 @@ function ChatThread({
       let responseMessageId = localAssistantId;
       let answerText = '';
       let streamedCitations: ChatCitation[] = [];
+      let streamedRetrievalDebug: RetrievalDebugChunk[] = [];
       let citationsFinalized = false;
       let done = false;
       while (!done) {
@@ -395,6 +406,11 @@ function ChatThread({
               return parsed.success ? [parsed.data] : [];
             });
             streamedCitations = citations;
+          } else if (part.type === 'data-retrieval-debug' && Array.isArray(part.data)) {
+            streamedRetrievalDebug = part.data.flatMap((entry) => {
+              const parsed = RetrievalDebugChunkSchema.safeParse(entry);
+              return parsed.success ? [parsed.data] : [];
+            });
           } else if (part.type === 'text-delta' && typeof part.delta === 'string') {
             answerText += part.delta;
             setMessages((current) =>
@@ -421,7 +437,10 @@ function ChatThread({
                 message.id === responseMessageId
                   ? {
                       ...message,
-                      parts: message.parts.filter((item) => item.type !== 'data-citations'),
+                      parts: message.parts.filter(
+                        (item) =>
+                          item.type !== 'data-citations' && item.type !== 'data-retrieval-debug',
+                      ),
                     }
                   : message,
               ),
@@ -434,10 +453,13 @@ function ChatThread({
               current.map((message) => {
                 if (message.id !== responseMessageId) return message;
                 const parts: OrgMindMessage['parts'] = message.parts.filter(
-                  (item) => item.type !== 'data-citations',
+                  (item) => item.type !== 'data-citations' && item.type !== 'data-retrieval-debug',
                 );
                 if (usedCitations.length > 0) {
                   parts.push({ type: 'data-citations', data: usedCitations });
+                }
+                if (streamedRetrievalDebug.length > 0) {
+                  parts.push({ type: 'data-retrieval-debug', data: streamedRetrievalDebug });
                 }
                 return {
                   ...message,
@@ -514,6 +536,45 @@ function ChatThread({
                           ))}
                         </div>
                       ) : null;
+                    }
+                    if (
+                      part.type === 'data-retrieval-debug' &&
+                      process.env.NODE_ENV === 'development'
+                    ) {
+                      return (
+                        <details className="retrieval-debug" key={`${message.id}-${index}`}>
+                          <summary>Retrieval debug · {part.data.length} chunks</summary>
+                          <div className="retrieval-debug-table-wrap">
+                            <table>
+                              <thead>
+                                <tr>
+                                  <th>Chunk</th>
+                                  <th>Vector rank / score</th>
+                                  <th>Keyword rank / score</th>
+                                  <th>Fused</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {part.data.map((row) => (
+                                  <tr key={row.chunkId}>
+                                    <td>
+                                      {row.documentName} · #{row.chunkIndex + 1}
+                                    </td>
+                                    <td>
+                                      {row.vectorRank ?? '—'} / {row.vectorScore?.toFixed(4) ?? '—'}
+                                    </td>
+                                    <td>
+                                      {row.keywordRank ?? '—'} /{' '}
+                                      {row.keywordScore?.toFixed(4) ?? '—'}
+                                    </td>
+                                    <td>{row.fusedScore.toFixed(5)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </details>
+                      );
                     }
                     return null;
                   })}

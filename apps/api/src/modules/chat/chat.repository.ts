@@ -106,7 +106,9 @@ export const chatRepository = {
   },
 
   async addMessage(
-    record: Omit<ChatMessageRecord, '_id' | 'createdAt'>,
+    record: Omit<ChatMessageRecord, '_id' | 'createdAt' | 'retrievalDebug'> & {
+      retrievalDebug?: ChatMessageRecord['retrievalDebug'];
+    },
   ): Promise<ChatMessageRecord> {
     const message = parseMessage({
       ...record,

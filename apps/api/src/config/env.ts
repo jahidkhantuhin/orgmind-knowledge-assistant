@@ -39,6 +39,9 @@ const EnvSchema = z
     CHAT_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
     CHAT_TOP_K: z.coerce.number().int().min(1).max(20).default(5),
     CHAT_MIN_RELEVANCE_SCORE: z.coerce.number().min(0).max(1).default(0.45),
+    CHAT_RETRIEVAL_STRATEGY: z.enum(['vector', 'hybrid']).default('hybrid'),
+    CHAT_VECTOR_SEARCH_WEIGHT: z.coerce.number().min(0).default(0.7),
+    CHAT_KEYWORD_SEARCH_WEIGHT: z.coerce.number().min(0).default(0.3),
     EMBEDDING_MODEL: z.string().min(1).default('gemini-embedding-001'),
     EMBEDDING_DIMENSIONS: z.coerce
       .number()
@@ -61,6 +64,13 @@ const EnvSchema = z
         code: 'custom',
         path: ['CHUNK_OVERLAP_CHARACTERS'],
         message: 'CHUNK_OVERLAP_CHARACTERS must be smaller than CHUNK_TARGET_CHARACTERS.',
+      });
+    }
+    if (value.CHAT_VECTOR_SEARCH_WEIGHT + value.CHAT_KEYWORD_SEARCH_WEIGHT <= 0) {
+      context.addIssue({
+        code: 'custom',
+        path: ['CHAT_VECTOR_SEARCH_WEIGHT'],
+        message: 'At least one retrieval weight must be greater than zero.',
       });
     }
   });

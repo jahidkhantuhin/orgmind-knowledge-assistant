@@ -30,6 +30,20 @@ The API uses Vercel AI SDK `ai@7.0.163` and Google provider `@ai-sdk/google@4.0.
 
 Set `GOOGLE_API_KEY` in `.env` for both question embeddings and answer generation. `CHAT_MODEL` defaults to `gemini-3.5-flash-lite`, a current low-latency model. If your `.env` explicitly sets `CHAT_MODEL`, update it too. `CHAT_TOP_K` defaults to `5` (allowed range: 1–20); `CHAT_MIN_RELEVANCE_SCORE` defaults to `0.45` (allowed range: 0–1). The chat storage indexes are applied by `pnpm db:migrate`. The MongoDB Vector Search index must also be READY, and at least one document must be fully processed before document-grounded answers can be retrieved.
 
+## Step 6: Hybrid retrieval
+
+Chat retrieval can use MongoDB `$rankFusion` to combine semantic `$vectorSearch` results with full-text `$search` (BM25) results from the same `chunks` collection. Each search is filtered by the active organization and default collection. Reciprocal rank fusion combines each result's position, so vector and text scores do not need to share a scale. The assistant receives the fused top passages and continues to stream citations as before. In development, expand **Retrieval debug** under an answer to inspect each returned chunk's vector rank/score, keyword rank/score, and fused score.
+
+`CHAT_RETRIEVAL_STRATEGY` selects `hybrid` (default) or `vector`; the vector option preserves the Step 5 retrieval path. `CHAT_VECTOR_SEARCH_WEIGHT` and `CHAT_KEYWORD_SEARCH_WEIGHT` default to `0.7` and `0.3`. Weights can be set to zero individually, but not both. MongoDB `$rankFusion` requires MongoDB 8.0 or later. Compose pins the verified `mongodb/mongodb-atlas-local:8.3.9` image, which includes local Search and Vector Search. After switching from the former `preview` image, pull and recreate the MongoDB container while preserving your data volumes:
+
+```powershell
+docker compose pull mongodb
+docker compose up -d --wait mongodb
+pnpm db:search-indexes
+```
+
+Pipeline-builder tests run with `pnpm --filter @orgmind/api test`. An optional integration test uses the MongoDB URI in `.env`, creates temporary Search and Vector Search indexes and fixture chunks, and skips if MongoDB is unavailable. The developer debug drawer is hidden in production builds.
+
 ## Quick start
 
 Requirements: Node.js 22.13+, pnpm 11.28+, and Docker Compose.

@@ -253,6 +253,39 @@
 .citation-chip:hover {
   background: #e9e5ff;
 }
+.retrieval-debug {
+  margin-top: 12px;
+  border: 1px solid #dfe3ec;
+  border-radius: 10px;
+  color: #667085;
+  font-size: 11px;
+}
+.retrieval-debug summary {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.retrieval-debug-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0 8px 8px;
+}
+.retrieval-debug table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  white-space: nowrap;
+}
+.retrieval-debug th,
+.retrieval-debug td {
+  padding: 6px 8px;
+  border-top: 1px solid #e7eaf0;
+}
+.retrieval-debug td:first-child {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .chat-composer {
   margin: 0 clamp(12px, 3vw, 38px) 20px;
   padding: 11px 12px 10px;
@@ -446,6 +479,14 @@
   border-color: #494171;
   background: #2b2745;
   color: #c9bfff;
+}
+.dark .retrieval-debug {
+  border-color: #394252;
+  color: #aab4c4;
+}
+.dark .retrieval-debug th,
+.dark .retrieval-debug td {
+  border-color: #303746;
 }
 .dark .source-preview-heading > button {
   color: #b8c1d0;
