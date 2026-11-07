@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   ChatCitationSchema,
+  citationsReferencedInAnswer,
   ConversationListResponseSchema,
   ConversationMessagesResponseSchema,
   ConversationSummarySchema,
@@ -357,6 +358,9 @@ function ChatThread({
       const decoder = new TextDecoder();
       let buffer = '';
       let responseMessageId = localAssistantId;
+      let answerText = '';
+      let streamedCitations: ChatCitation[] = [];
+      let citationsFinalized = false;
       let done = false;
       while (!done) {
         const result = await reader.read();
@@ -390,17 +394,9 @@ function ChatThread({
               const parsed = ChatCitationSchema.safeParse(citation);
               return parsed.success ? [parsed.data] : [];
             });
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === responseMessageId
-                  ? {
-                      ...message,
-                      parts: [...message.parts, { type: 'data-citations', data: citations }],
-                    }
-                  : message,
-              ),
-            );
+            streamedCitations = citations;
           } else if (part.type === 'text-delta' && typeof part.delta === 'string') {
+            answerText += part.delta;
             setMessages((current) =>
               current.map((message) => {
                 if (message.id !== responseMessageId) return message;
@@ -419,6 +415,36 @@ function ChatThread({
             );
           } else if (part.type === 'error' && typeof part.errorText === 'string') {
             setStreamError(part.errorText);
+            setSelectedCitation(null);
+            setMessages((current) =>
+              current.map((message) =>
+                message.id === responseMessageId
+                  ? {
+                      ...message,
+                      parts: message.parts.filter((item) => item.type !== 'data-citations'),
+                    }
+                  : message,
+              ),
+            );
+          } else if (part.type === 'finish' && !citationsFinalized) {
+            citationsFinalized = true;
+            const usedCitations = citationsReferencedInAnswer(answerText, streamedCitations);
+            if (usedCitations.length === 0) setSelectedCitation(null);
+            setMessages((current) =>
+              current.map((message) => {
+                if (message.id !== responseMessageId) return message;
+                const parts: OrgMindMessage['parts'] = message.parts.filter(
+                  (item) => item.type !== 'data-citations',
+                );
+                if (usedCitations.length > 0) {
+                  parts.push({ type: 'data-citations', data: usedCitations });
+                }
+                return {
+                  ...message,
+                  parts,
+                };
+              }),
+            );
           }
         }
         done = result.done;

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { RequestHandler } from 'express';
 import {
   ChatRequestSchema,
+  citationsReferencedInAnswer,
   ConversationListResponseSchema,
   ConversationMessagesResponseSchema,
   ConversationSummarySchema,
@@ -45,7 +46,7 @@ function toMessageResponse(record: Awaited<ReturnType<typeof chatRepository.addM
     id: record._id,
     role: record.role,
     content: record.content,
-    citations: record.citations,
+    citations: citationsReferencedInAnswer(record.content, record.citations),
     createdAt: record.createdAt.toISOString(),
   });
 }
@@ -265,13 +266,14 @@ export const streamChatController: RequestHandler = async (req, res) => {
         .map((part) => (part.type === 'text' ? part.text : ''))
         .join('');
       if (!content) return;
+      const usedCitations = citationsReferencedInAnswer(content, citations);
       await chatRepository.addMessage({
         organizationId,
         conversationId: conversation._id,
         userId,
         role: 'assistant',
         content,
-        citations,
+        citations: usedCitations,
       });
     },
   });

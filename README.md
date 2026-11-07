@@ -24,7 +24,7 @@ Parsed documents are split into overlapping, heading-aware chunks while keeping 
 
 ## Step 5: Streaming, document-grounded chat
 
-Open **Assistant** from the workspace to ask questions about processed documents. Each answer streams as it is generated and includes source citations; selecting a citation previews its passage and links to the source document. Conversations can be created, renamed, reopened, and deleted. History is private to the signed-in user within their organization.
+Open **Assistant** from the workspace to ask questions about processed documents. Each answer streams as it is generated; citations are shown only for sources referenced by the answer. Selecting a citation previews its passage and links to the source document. Conversations can be created, renamed, reopened, and deleted. History is private to the signed-in user within their organization.
 
 The API uses Vercel AI SDK `ai@7.0.163` and Google provider `@ai-sdk/google@4.0.112`. It embeds each question using the existing Gemini query-embedding provider, then runs a MongoDB `$vectorSearch` filtered to the active organization and default collection. Up to `CHAT_TOP_K` relevant passages are supplied to the configured Google model. Results below `CHAT_MIN_RELEVANCE_SCORE` are excluded; when no eligible passage remains, the assistant returns a clear “I don't know” response. The model is instructed to use only the retrieved passages and cite factual claims. Recent conversation history is sent as context (up to 20 messages), while MongoDB retains and returns up to 200 messages per conversation.
 

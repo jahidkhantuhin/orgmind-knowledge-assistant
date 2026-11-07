@@ -196,6 +196,26 @@ export const ChatCitationSchema = z.object({
 });
 export type ChatCitation = z.infer<typeof ChatCitationSchema>;
 
+export function citationsReferencedInAnswer(
+  answer: string,
+  citations: ChatCitation[],
+): ChatCitation[] {
+  const normalizedAnswer = answer.trim().replace(/^[\s>*#]+/, '');
+  if (
+    /^(?:i (?:do not|don't) know|i (?:cannot|can't) determine|there is not enough information|the (?:available )?documents? (?:do not|don't|does not|doesn't) (?:say|specify|contain))/i.test(
+      normalizedAnswer,
+    )
+  ) {
+    return [];
+  }
+  const referencedIndexes = new Set(
+    [...answer.matchAll(/\[S(\d+)\]/gi)]
+      .map((match) => Number(match[1]) - 1)
+      .filter((index) => index >= 0),
+  );
+  return citations.filter((_citation, index) => referencedIndexes.has(index));
+}
+
 export const ChatMessageRecordSchema = z.object({
   _id: z.string().uuid(),
   organizationId: z.string().min(1),
