@@ -56,19 +56,6 @@ describe('MongoDB hybrid retrieval integration', () => {
       // MongoDB Search index creation requires the namespace to exist first.
       await database.createCollection('chunks');
       const collection = database.collection<FixtureChunk>('chunks');
-      await Promise.all([
-        collection.createSearchIndex({
-          name: CHUNKS_VECTOR_INDEX_NAME,
-          type: 'vectorSearch',
-          definition: chunksVectorSearchDefinition,
-        }),
-        collection.createSearchIndex({
-          name: CHUNKS_TEXT_INDEX_NAME,
-          type: 'search',
-          definition: chunksTextSearchDefinition,
-        }),
-      ]);
-      await waitForIndexes(collection);
 
       const dimensions = env.EMBEDDING_DIMENSIONS;
       const vector = (index: number) => {
@@ -77,6 +64,7 @@ describe('MongoDB hybrid retrieval integration', () => {
         return Binary.fromFloat32Array(values);
       };
       const organizationId = `org-${randomUUID()}`;
+      // Seed before index creation so READY means these fixtures are searchable too.
       await collection.insertMany([
         {
           _id: 'keyword-hit',
@@ -112,6 +100,20 @@ describe('MongoDB hybrid retrieval integration', () => {
           embedding: vector(0),
         },
       ]);
+
+      await Promise.all([
+        collection.createSearchIndex({
+          name: CHUNKS_VECTOR_INDEX_NAME,
+          type: 'vectorSearch',
+          definition: chunksVectorSearchDefinition,
+        }),
+        collection.createSearchIndex({
+          name: CHUNKS_TEXT_INDEX_NAME,
+          type: 'search',
+          definition: chunksTextSearchDefinition,
+        }),
+      ]);
+      await waitForIndexes(collection);
 
       const runSearch = (aclTokens: string[]) =>
         collection
