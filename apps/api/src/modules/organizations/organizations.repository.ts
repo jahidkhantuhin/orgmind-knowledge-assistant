@@ -5,6 +5,19 @@ import { getDatabase } from '../../lib/connections.js';
 
 type OrganizationRecord = OrganizationDocument & Document;
 
+export class WorkspaceNameTakenError extends Error {
+  constructor() {
+    super(
+      'A workspace with this company name already exists. Ask for an invitation or choose another name.',
+    );
+    this.name = 'WorkspaceNameTakenError';
+  }
+}
+
+export function normalizeWorkspaceName(name: string): string {
+  return name.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 function organizations(): Collection<OrganizationRecord> {
   return getDatabase().collection<OrganizationRecord>('organizations');
 }
@@ -35,15 +48,32 @@ export const organizationsRepository = {
     ]);
   },
 
+  async ensureWorkspaceNameIndex(): Promise<void> {
+    await organizations().createIndex(
+      { workspaceNameKey: 1 },
+      { unique: true, name: 'organizations_workspace_name_unique' },
+    );
+  },
+
+  async isWorkspaceNameTaken(name: string): Promise<boolean> {
+    return Boolean(
+      await organizations().findOne({ workspaceNameKey: normalizeWorkspaceName(name) }),
+    );
+  },
+
   async createForOwner(name: string, ownerId: string): Promise<OrganizationDocument> {
     const existing = await organizations().findOne({ ownerId });
     if (existing) return parseDocument(existing);
+
+    const workspaceNameKey = normalizeWorkspaceName(name);
+    if (await organizations().findOne({ workspaceNameKey })) throw new WorkspaceNameTakenError();
 
     const now = new Date();
     const document = parseDocument({
       _id: randomUUID(),
       name,
       slug: createSlug(name),
+      workspaceNameKey,
       ownerId,
       createdAt: now,
       updatedAt: now,
@@ -55,6 +85,8 @@ export const organizationsRepository = {
       if (typeof error === 'object' && error !== null && 'code' in error && error.code === 11000) {
         const createdByConcurrentRequest = await organizations().findOne({ ownerId });
         if (createdByConcurrentRequest) return parseDocument(createdByConcurrentRequest);
+        if (await organizations().findOne({ workspaceNameKey }))
+          throw new WorkspaceNameTakenError();
       }
       throw error;
     }

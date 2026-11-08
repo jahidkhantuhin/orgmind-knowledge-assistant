@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { type Collection, type Document } from 'mongodb';
+import { type ClientSession, type Collection, type Document } from 'mongodb';
 import {
   MembershipDocumentSchema,
   type MembershipDocument,
@@ -30,8 +30,10 @@ export const membershipsRepository = {
     organizationId: string,
     userId: string,
     role: MembershipRole,
+    session?: ClientSession,
   ): Promise<MembershipDocument> {
     const now = new Date();
+    const options = session ? { upsert: true, session } : { upsert: true };
     await memberships().updateOne(
       { organizationId, userId },
       {
@@ -45,9 +47,12 @@ export const membershipsRepository = {
           updatedAt: now,
         },
       },
-      { upsert: true },
+      options,
     );
-    const result = await memberships().findOne({ organizationId, userId });
+    const result = await memberships().findOne(
+      { organizationId, userId },
+      session ? { session } : {},
+    );
     if (!result) throw new Error('Membership was not available after the upsert.');
     return parseDocument(result);
   },

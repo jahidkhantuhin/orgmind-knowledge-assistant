@@ -6,12 +6,14 @@ import {
   currentUserController,
   loginController,
   logoutController,
+  previewInvitationController,
   registerController,
 } from './auth.controller.js';
 
 export const authRouter = Router();
 
 authRouter.post('/register', validate({ body: RegisterSchema }), registerController);
+authRouter.get('/invitations/:code', previewInvitationController);
 authRouter.post('/login', validate({ body: LoginSchema }), loginController);
 authRouter.post('/logout', logoutController);
 authRouter.get('/me', requireAuth, currentUserController);

@@ -19,6 +19,7 @@ export const OrganizationDocumentSchema = z.object({
   _id: z.string().min(1),
   name: z.string().min(2).max(100),
   slug: z.string().min(2).max(120),
+  workspaceNameKey: z.string().min(1).optional(),
   ownerId: z.string().min(1),
   createdAt: z.date(),
   updatedAt: z.date(),
@@ -36,13 +37,69 @@ export const MembershipDocumentSchema = z.object({
 });
 export type MembershipDocument = z.infer<typeof MembershipDocumentSchema>;
 
-export const RegisterSchema = z.object({
+const RegisterFieldsSchema = z.object({
   name: z.string().trim().min(2).max(80),
-  organizationName: z.string().trim().min(2).max(100),
   email: z.email().trim().toLowerCase(),
   password: z.string().min(12).max(128),
 });
+
+export const RegisterSchema = z.discriminatedUnion('workspaceMode', [
+  RegisterFieldsSchema.extend({
+    workspaceMode: z.literal('create'),
+    organizationName: z.string().trim().min(2).max(100),
+  }),
+  RegisterFieldsSchema.extend({
+    workspaceMode: z.literal('join'),
+    inviteCode: z.string().trim().min(20).max(200),
+  }),
+]);
 export type RegisterInput = z.infer<typeof RegisterSchema>;
+
+export const CreateWorkspaceInvitationSchema = z.object({
+  email: z.email().trim().toLowerCase(),
+  role: MembershipRoleSchema,
+});
+
+export const WorkspaceInvitationSummarySchema = z.object({
+  id: z.string().uuid(),
+  email: z.email(),
+  role: MembershipRoleSchema,
+  createdAt: z.string().datetime(),
+  expiresAt: z.string().datetime(),
+});
+export type WorkspaceInvitationSummary = z.infer<typeof WorkspaceInvitationSummarySchema>;
+
+export const WorkspaceInvitationsResponseSchema = z.object({
+  invitations: z.array(WorkspaceInvitationSummarySchema),
+});
+
+export const CreateWorkspaceInvitationResponseSchema = z.object({
+  invitation: WorkspaceInvitationSummarySchema,
+  code: z.string().min(20),
+});
+
+export const WorkspaceInvitationPreviewSchema = z.object({
+  email: z.email(),
+  organizationName: z.string(),
+  role: MembershipRoleSchema,
+  expiresAt: z.string().datetime(),
+});
+export type WorkspaceInvitationPreview = z.infer<typeof WorkspaceInvitationPreviewSchema>;
+
+export const WorkspaceInvitationDocumentSchema = z.object({
+  _id: z.string().uuid(),
+  organizationId: z.string().min(1),
+  email: z.email(),
+  role: MembershipRoleSchema,
+  tokenHash: z.string().min(1),
+  createdBy: z.string().min(1),
+  createdAt: z.date(),
+  expiresAt: z.date(),
+  status: z.enum(['pending', 'accepted', 'revoked']),
+  acceptedBy: z.string().optional(),
+  acceptedAt: z.date().optional(),
+});
+export type WorkspaceInvitationDocument = z.infer<typeof WorkspaceInvitationDocumentSchema>;
 
 export const LoginSchema = z.object({
   email: z.email().trim().toLowerCase(),

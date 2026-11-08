@@ -59,7 +59,9 @@ Set `COHERE_API_KEY` in `.env`, run migrations, and enable **Rerank search resul
 
 ## Step 8: Permission-aware retrieval
 
-Documents can be shared by workspace role, individual account, or team group. Workspace admins always retain access. In **Settings → Members**, an admin can add an existing OrgMind account by email, create groups, and assign workspace members to groups. The person must register before being added; this local setup does not send invitations. When a person belongs to multiple workspaces, use the workspace selector in the sidebar to switch between them.
+Documents can be shared by workspace role, individual account, or team group. Workspace admins always retain access. In **Settings → Members**, an admin can add an existing OrgMind account, create a role-assigned invitation for a new account, create groups, and assign workspace members to groups. Invitation links are bound to the invited email, expire after seven days, and can be used once. Existing accounts should be added through **Add existing account**. When a person belongs to multiple workspaces, use the workspace selector in the sidebar to switch between them.
+
+Registration offers two paths: create a new workspace with a case-insensitively unique company name, or join using an administrator invitation link/code. Joining does not create an extra personal workspace. Workspace names are normalized and protected by a unique MongoDB index; older duplicate names are retained while new duplicates are rejected.
 
 In **Knowledge base**, set a folder name before upload. Admins can select **Share** on a document and apply its access to just that document or the entire folder. New uploads inherit the folder's permissions and include the uploader. A document-only permission change leaves the folder's default policy intact. Role, user, and group ACL tokens are copied to each chunk. Permission changes update document and chunk records in one MongoDB transaction. Older documents and chunks stay workspace-visible through migration `006-acl-backfill`; migration `008-document-collection-access` initializes their folder policies.
 
@@ -73,7 +75,9 @@ pnpm --filter @orgmind/api test
 pnpm dev
 ```
 
-Register a second account in a private browser window. As the admin, open **Settings → Members**, add that account by email, create a team group, and assign the account to the group. Upload a test document into a folder such as `people-ops`, select **Share**, choose **Entire folder**, select the group, and click **Save access**. Sign in as the added account, switch to the shared workspace, and ask a question answered by that document. Remove the account from the group and retry; the document should no longer appear in its Knowledge base list or in retrieved citations. The MongoDB hybrid retrieval integration test creates temporary indexes and skips when the configured MongoDB service is unavailable.
+To verify invitations, open **Settings → Members**, create an invitation for an email and role, then open the generated link in a private window and register with that exact email. The account joins the invited workspace with the selected role. Try the link a second time or with another email; it should be rejected. To verify workspace name uniqueness, attempt to register a new workspace using a name already in use; registration should ask for a different name or an invitation. The MongoDB hybrid retrieval integration test creates temporary indexes and skips when the configured MongoDB service is unavailable.
+
+For document access, create a team group and assign the invited account to it. Upload a test document into a folder such as `people-ops`, select **Share**, choose **Entire folder**, select the group, and click **Save access**. Sign in as that member and ask a question answered by the document. Remove the account from the group and retry; the document should no longer appear in its Knowledge base list or in retrieved citations.
 
 ## Quick start
 

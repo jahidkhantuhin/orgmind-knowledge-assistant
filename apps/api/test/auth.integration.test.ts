@@ -34,6 +34,7 @@ describe('authentication flow', () => {
     const email = `auth-${randomUUID()}@orgmind.test`;
     const password = 'OrgMindIntegration2026!';
     const registration = await agent.post('/auth/register').send({
+      workspaceMode: 'create',
       name: 'Integration Admin',
       organizationName: 'Example Workspace',
       email,

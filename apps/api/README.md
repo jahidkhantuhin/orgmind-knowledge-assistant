@@ -6,7 +6,7 @@ Express 5 API for authentication, sessions, tenant membership, document upload a
 
 From the repository root, start MongoDB Atlas Local and Redis with `docker compose up -d --wait`, then run `pnpm db:migrate`, `pnpm db:search-indexes`, `pnpm db:seed`, and `pnpm dev`.
 
-Authentication routes are available at `/auth/register`, `/auth/login`, `/auth/logout`, and `/auth/me`. Better Auth's handler is mounted at `/api/auth/*`. Admin-only organization member listing is available at `/organizations/:organizationId/members`.
+Authentication routes are available at `/auth/register`, `/auth/login`, `/auth/logout`, and `/auth/me`. Registration accepts either a new unique workspace name or a valid invitation code. `GET /auth/invitations/:code?email=...` verifies an email-bound invite. Better Auth's handler is mounted at `/api/auth/*`. Admins can list, create, and revoke invitations at `/organizations/:organizationId/invitations`; links expire after seven days and are single-use. Admin-only organization member listing is available at `/organizations/:organizationId/members`.
 
 Documents can be listed at `GET /organizations/:organizationId/documents`, uploaded as a multipart `file` at `POST /organizations/:organizationId/documents`, inspected at `GET /organizations/:organizationId/documents/:documentId`, reprocessed at `POST /organizations/:organizationId/documents/:documentId/reingest`, and deleted at `DELETE /organizations/:organizationId/documents/:documentId`. Admins and members can upload, reprocess, and delete; organization viewers can list and inspect. Redis runs a BullMQ worker for PDF, DOCX, Markdown, and TXT extraction, structure-aware chunking, and embeddings.
 

@@ -21,7 +21,7 @@ export const auth = betterAuth({
     additionalFields: {
       organizationName: {
         type: 'string',
-        required: true,
+        required: false,
         input: true,
       },
     },
@@ -37,10 +37,9 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          if (typeof user.organizationName !== 'string') {
-            throw new Error('Organization name is missing from the new user record.');
+          if (typeof user.organizationName === 'string' && user.organizationName.trim()) {
+            await provisionPersonalOrganization(user.id, user.organizationName.trim());
           }
-          await provisionPersonalOrganization(user.id, user.organizationName);
         },
       },
     },

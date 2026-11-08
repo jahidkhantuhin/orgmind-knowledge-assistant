@@ -2,15 +2,18 @@ import type { RequestHandler } from 'express';
 import { listOrganizationMembers } from './organizations.service.js';
 import {
   AddOrganizationMemberSchema,
+  CreateWorkspaceInvitationSchema,
   CreateTeamGroupSchema,
   TeamGroupSchema,
   TeamGroupsResponseSchema,
   UpdateMemberGroupsSchema,
+  WorkspaceInvitationSummarySchema,
 } from '@orgmind/shared';
 import { groupsRepository } from './groups.repository.js';
 import { membershipsRepository } from './memberships.repository.js';
 import { usersRepository } from '../users/users.repository.js';
 import { OrganizationMemberSchema } from '@orgmind/shared';
+import { workspaceInvitationsRepository } from './workspace-invitations.repository.js';
 
 export const listMembersController: RequestHandler = async (req, res) => {
   const routeOrganizationId = req.params.organizationId;
@@ -138,4 +141,88 @@ export const updateMemberGroupsController: RequestHandler = async (req, res) => 
     return;
   }
   res.json({ groupIds });
+};
+
+function invitationSummary(invitation: {
+  _id: string;
+  email: string;
+  role: 'admin' | 'member' | 'viewer';
+  createdAt: Date;
+  expiresAt: Date;
+}) {
+  return WorkspaceInvitationSummarySchema.parse({
+    id: invitation._id,
+    email: invitation.email,
+    role: invitation.role,
+    createdAt: invitation.createdAt.toISOString(),
+    expiresAt: invitation.expiresAt.toISOString(),
+  });
+}
+
+export const listWorkspaceInvitationsController: RequestHandler = async (req, res) => {
+  const organizationId = req.membership?.organizationId;
+  if (!organizationId) {
+    res
+      .status(400)
+      .json({ error: { code: 'INVALID_ORGANIZATION', message: 'Workspace is required.' } });
+    return;
+  }
+  const invitations = await workspaceInvitationsRepository.listPending(organizationId);
+  res.json({ invitations: invitations.map(invitationSummary) });
+};
+
+export const createWorkspaceInvitationController: RequestHandler = async (req, res) => {
+  const organizationId = req.membership?.organizationId;
+  const userId = req.authSession?.user.id;
+  const input = CreateWorkspaceInvitationSchema.safeParse(req.body);
+  if (!organizationId || !userId || !input.success) {
+    res.status(400).json({
+      error: { code: 'INVALID_INVITATION', message: 'Enter a valid email and workspace role.' },
+    });
+    return;
+  }
+  const user = await usersRepository.findByEmail(input.data.email);
+  if (user && (await membershipsRepository.findForUserInOrganization(user.id, organizationId))) {
+    res.status(409).json({
+      error: { code: 'ALREADY_MEMBER', message: 'This person is already a workspace member.' },
+    });
+    return;
+  }
+  if (user) {
+    res.status(409).json({
+      error: {
+        code: 'ACCOUNT_ALREADY_EXISTS',
+        message: 'This person already has an account. Add them from the existing account form.',
+      },
+    });
+    return;
+  }
+  const created = await workspaceInvitationsRepository.create({
+    organizationId,
+    email: input.data.email,
+    role: input.data.role,
+    createdBy: userId,
+  });
+  res.status(201).json({ invitation: invitationSummary(created.invitation), code: created.code });
+};
+
+export const revokeWorkspaceInvitationController: RequestHandler = async (req, res) => {
+  const organizationId = req.membership?.organizationId;
+  const invitationId = Array.isArray(req.params.invitationId)
+    ? req.params.invitationId[0]
+    : req.params.invitationId;
+  if (!organizationId || !invitationId) {
+    res
+      .status(400)
+      .json({ error: { code: 'INVALID_INVITATION', message: 'Invitation is required.' } });
+    return;
+  }
+  const revoked = await workspaceInvitationsRepository.revoke(organizationId, invitationId);
+  if (!revoked) {
+    res
+      .status(404)
+      .json({ error: { code: 'INVITATION_NOT_FOUND', message: 'Invitation not found.' } });
+    return;
+  }
+  res.json({ success: true });
 };

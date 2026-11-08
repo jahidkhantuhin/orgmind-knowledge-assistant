@@ -11,6 +11,7 @@ import { RetrievalSettingsPanel } from '../../../components/retrieval-settings-p
 import { getCurrentUser } from '../../../lib/current-user';
 import { TeamGroupsPanel } from '../../../components/team-groups-panel';
 import { AddWorkspaceMemberForm } from '../../../components/add-workspace-member-form';
+import { WorkspaceInvitationsPanel } from '../../../components/workspace-invitations-panel';
 
 const apiUrl =
   process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -57,6 +58,7 @@ export default async function MembersPage() {
         invitations.
       </p>
       <AddWorkspaceMemberForm organizationId={organization.organizationId} />
+      <WorkspaceInvitationsPanel organizationId={organization.organizationId} />
       <section className="members-card">
         <div className="members-card-head">
           <strong>Workspace members</strong>

@@ -2,7 +2,6 @@ import { MigrationDocumentSchema, type MigrationDocument } from '@orgmind/shared
 import type { Collection, Document } from 'mongodb';
 import { getDatabase } from '../../lib/connections.js';
 import { membershipsRepository } from '../../modules/organizations/memberships.repository.js';
-import { organizationsRepository } from '../../modules/organizations/organizations.repository.js';
 import { usersRepository } from '../../modules/users/users.repository.js';
 import { documentsRepository } from '../../modules/documents/documents.repository.js';
 import { chunksRepository } from '../../modules/documents/chunks.repository.js';
@@ -11,6 +10,11 @@ import { contextualEnrichmentRepository } from '../../modules/documents/contextu
 import { retrievalSettingsRepository } from '../../modules/organizations/retrieval-settings.repository.js';
 import { groupsRepository } from '../../modules/organizations/groups.repository.js';
 import { documentCollectionsRepository } from '../../modules/documents/document-collections.repository.js';
+import {
+  normalizeWorkspaceName,
+  organizationsRepository,
+} from '../../modules/organizations/organizations.repository.js';
+import { workspaceInvitationsRepository } from '../../modules/organizations/workspace-invitations.repository.js';
 
 export async function runMigrations(): Promise<void> {
   const database = getDatabase();
@@ -76,6 +80,28 @@ export async function runMigrations(): Promise<void> {
     await documentCollectionsRepository.ensureIndexes();
     await documentCollectionsRepository.backfillFromDocuments();
   });
+  await applyMigration(migrations, '009-unique-workspace-names', async () => {
+    const organizations = database.collection<{ _id: string; name: string; createdAt?: Date }>(
+      'organizations',
+    );
+    const rows = await organizations
+      .find({}, { projection: { _id: 1, name: 1, createdAt: 1 } })
+      .sort({ createdAt: 1, _id: 1 })
+      .toArray();
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const normalizedName = normalizeWorkspaceName(row.name);
+      const uniqueKey = seen.has(normalizedName)
+        ? `${normalizedName}::legacy:${row._id}`
+        : normalizedName;
+      seen.add(normalizedName);
+      await organizations.updateOne({ _id: row._id }, { $set: { workspaceNameKey: uniqueKey } });
+    }
+    await organizationsRepository.ensureWorkspaceNameIndex();
+  });
+  await applyMigration(migrations, '010-workspace-invitations', () =>
+    workspaceInvitationsRepository.ensureIndexes(),
+  );
 }
 
 async function applyMigration(

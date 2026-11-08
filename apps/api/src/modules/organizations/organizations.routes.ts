@@ -2,8 +2,11 @@ import { Router } from 'express';
 import { requireOrganizationRole, requireAuth } from '../../auth/auth.middleware.js';
 import {
   createTeamGroupController,
+  createWorkspaceInvitationController,
+  listWorkspaceInvitationsController,
   addOrganizationMemberController,
   listMembersController,
+  revokeWorkspaceInvitationController,
   listTeamGroupsController,
   updateMemberGroupsController,
 } from './organizations.controller.js';
@@ -63,6 +66,24 @@ organizationsRouter.patch(
   requireAuth,
   requireOrganizationRole(['admin']),
   updateMemberGroupsController,
+);
+organizationsRouter.get(
+  '/:organizationId/invitations',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  listWorkspaceInvitationsController,
+);
+organizationsRouter.post(
+  '/:organizationId/invitations',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  createWorkspaceInvitationController,
+);
+organizationsRouter.delete(
+  '/:organizationId/invitations/:invitationId',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  revokeWorkspaceInvitationController,
 );
 organizationsRouter.get(
   '/:organizationId/chat/conversations',

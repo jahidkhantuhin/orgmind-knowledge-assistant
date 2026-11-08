@@ -695,6 +695,81 @@
   max-width: 900px;
   margin-bottom: 18px;
 }
+.workspace-invitations-card {
+  margin: 0 0 18px;
+  padding-bottom: 14px;
+}
+.workspace-invitations-help {
+  margin: 12px 18px 0;
+  color: #71809b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.workspace-invitation-form {
+  padding: 12px 18px;
+}
+.workspace-invitation-form input {
+  min-width: 180px;
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #dfe4ed;
+  border-radius: 9px;
+  color: #182235;
+  background: #fff;
+}
+.workspace-invitation-form button {
+  min-height: 40px;
+}
+.workspace-invite-link {
+  display: grid;
+  gap: 7px;
+  padding: 0 18px 12px;
+  color: var(--foreground);
+  font-size: 12px;
+}
+.workspace-invite-link > div {
+  display: flex;
+  gap: 8px;
+}
+.workspace-invite-link input {
+  min-width: 0;
+  flex: 1;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--foreground);
+  background: var(--background);
+  font-size: 11px;
+}
+.workspace-invitation-status,
+.workspace-invitation-error {
+  margin: 0 18px 12px;
+  color: #21845b;
+  font-size: 12px;
+}
+.workspace-invitation-error {
+  color: #bd3949;
+}
+.workspace-invitation-list {
+  display: grid;
+  gap: 8px;
+  padding: 12px 18px 0;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+}
+.workspace-invitation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 0;
+}
+.workspace-invitation-row small {
+  display: block;
+  margin-top: 4px;
+  color: #71809b;
+  font-size: 11px;
+}
 .dark .team-group-create select {
   border-color: #394252;
   color: #e3e8f1;
@@ -752,7 +827,29 @@
   color: #e3e8f1;
   background: #121720;
 }
+.dark .workspace-invitations-help,
+.dark .workspace-invitation-row small {
+  color: #aab4c4;
+}
+.dark .workspace-invitation-form input {
+  border-color: #394252;
+  color: #e3e8f1;
+  background: #121720;
+}
+.dark .workspace-invitation-status {
+  color: #9ce0bd;
+}
+.dark .workspace-invitation-error {
+  color: #ffb5ba;
+}
 @media (max-width: 640px) {
+  .workspace-invite-link > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .workspace-invite-link input {
+    width: 100%;
+  }
   .knowledge-topbar {
     height: 62px;
     padding: 0 18px;
