@@ -2,6 +2,7 @@ import type { DocumentChunk } from '@orgmind/shared';
 import { mongoClient } from '../../lib/connections.js';
 import { chunksRepository } from './chunks.repository.js';
 import { documentsRepository } from './documents.repository.js';
+import { contextualEnrichmentRepository } from './contextual-enrichment.repository.js';
 
 export const documentIngestionRepository = {
   async commitChunks(
@@ -33,7 +34,14 @@ export const documentIngestionRepository = {
           organizationId,
           session,
         );
-        if (document) await chunksRepository.deleteByDocument(documentId, session);
+        if (document) {
+          await chunksRepository.deleteByDocument(documentId, session);
+          await contextualEnrichmentRepository.deleteByDocument(
+            documentId,
+            organizationId,
+            session,
+          );
+        }
       });
       return document;
     } finally {

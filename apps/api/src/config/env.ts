@@ -42,6 +42,19 @@ const EnvSchema = z
     CHAT_RETRIEVAL_STRATEGY: z.enum(['vector', 'hybrid']).default('hybrid'),
     CHAT_VECTOR_SEARCH_WEIGHT: z.coerce.number().min(0).default(0.7),
     CHAT_KEYWORD_SEARCH_WEIGHT: z.coerce.number().min(0).default(0.3),
+    CHAT_RERANK_CANDIDATE_COUNT: z.coerce.number().int().min(1).max(100).default(20),
+    COHERE_API_KEY: z.string().default(''),
+    COHERE_RERANK_MODEL: z.string().min(1).default('rerank-v5.0-fast'),
+    CHAT_QUERY_REWRITE_DEFAULT_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    CONTEXTUAL_ENRICHMENT_ENABLED: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform((v) => v === 'true'),
+    CONTEXT_ENRICHMENT_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
+    CONTEXT_ENRICHMENT_CACHE_TTL_DAYS: z.coerce.number().int().min(1).max(3650).default(180),
     EMBEDDING_MODEL: z.string().min(1).default('gemini-embedding-001'),
     EMBEDDING_DIMENSIONS: z.coerce
       .number()
@@ -71,6 +84,13 @@ const EnvSchema = z
         code: 'custom',
         path: ['CHAT_VECTOR_SEARCH_WEIGHT'],
         message: 'At least one retrieval weight must be greater than zero.',
+      });
+    }
+    if (value.CHAT_RERANK_CANDIDATE_COUNT < value.CHAT_TOP_K) {
+      context.addIssue({
+        code: 'custom',
+        path: ['CHAT_RERANK_CANDIDATE_COUNT'],
+        message: 'CHAT_RERANK_CANDIDATE_COUNT must be at least CHAT_TOP_K.',
       });
     }
   });

@@ -144,6 +144,45 @@
   color: var(--muted);
   font-size: 10px;
 }
+.retrieval-settings-card {
+  margin-top: 22px;
+}
+.retrieval-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 18px 22px;
+  border-top: 1px solid var(--line);
+}
+.retrieval-setting-row strong {
+  display: block;
+  color: var(--foreground);
+  font-size: 14px;
+}
+.retrieval-setting-row p,
+.retrieval-settings-status,
+.retrieval-settings-error {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.retrieval-setting-row input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+.retrieval-settings-error {
+  margin: 0;
+  padding: 0 22px 16px;
+  color: #c53939;
+}
+.retrieval-settings-status {
+  margin: 0;
+  padding: 0 22px 16px;
+}
 .members-table-wrap {
   overflow-x: auto;
 }

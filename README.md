@@ -44,6 +44,19 @@ pnpm db:search-indexes
 
 Pipeline-builder tests run with `pnpm --filter @orgmind/api test`. An optional integration test uses the MongoDB URI in `.env`, creates temporary Search and Vector Search indexes and fixture chunks, and skips if MongoDB is unavailable. The developer debug drawer is hidden in production builds.
 
+## Step 7: Reranking and contextual retrieval
+
+An admin can open **Settings → Members → Retrieval settings** to enable query rewriting and Cohere reranking for the workspace. Query rewriting uses the configured Google chat model; Cohere Rerank API v2 with `rerank-v5.0-fast` reorders the top `CHAT_RERANK_CANDIDATE_COUNT` search candidates before the top `CHAT_TOP_K` passages are used. The development Retrieval debug drawer shows fused rank and score alongside rerank rank and score, so the ordering change is visible. Cohere is called with the built-in `fetch`; no Cohere SDK is required. Reranking is unavailable until `COHERE_API_KEY` is set.
+
+Optional contextual enrichment generates a short, source-grounded context sentence and prepends it to each chunk only for embedding. Original chunk text remains the displayed source. It is disabled by default to avoid added ingestion time and model usage; enable it with `CONTEXTUAL_ENRICHMENT_ENABLED=true`, then reprocess documents. A MongoDB cache keyed by organization, document, chunk content, and model avoids repeating generation during reprocessing; cache entries expire after `CONTEXT_ENRICHMENT_CACHE_TTL_DAYS` (default 180) and are removed when the document is deleted. Query rewriting is disabled by default and can be enabled from workspace settings.
+
+```powershell
+pnpm db:migrate
+pnpm --filter @orgmind/api test
+```
+
+Set `COHERE_API_KEY` in `.env`, run migrations, and enable **Rerank search results** in admin settings to verify Cohere ordering. Enable **Rewrite search queries** there to verify query rewriting. To verify enrichment, set `CONTEXTUAL_ENRICHMENT_ENABLED=true`, reprocess a document, then reprocess it again and confirm the second pass uses cached contexts.
+
 ## Quick start
 
 Requirements: Node.js 22.13+, pnpm 11.28+, and Docker Compose.

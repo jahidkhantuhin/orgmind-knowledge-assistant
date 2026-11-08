@@ -186,11 +186,14 @@ export const ConversationListResponseSchema = z.object({
 export type ConversationListResponse = z.infer<typeof ConversationListResponseSchema>;
 
 export const RetrievalDebugSchema = z.object({
+  fusedRank: z.number().int().positive().nullable().optional(),
   vectorRank: z.number().int().positive().nullable(),
   vectorScore: z.number().nullable(),
   keywordRank: z.number().int().positive().nullable(),
   keywordScore: z.number().nullable(),
   fusedScore: z.number().min(0),
+  rerankRank: z.number().int().positive().nullable().optional(),
+  rerankScore: z.number().nullable().optional(),
 });
 export type RetrievalDebug = z.infer<typeof RetrievalDebugSchema>;
 
@@ -200,6 +203,37 @@ export const RetrievalDebugChunkSchema = RetrievalDebugSchema.extend({
   chunkIndex: z.number().int().nonnegative(),
 });
 export type RetrievalDebugChunk = z.infer<typeof RetrievalDebugChunkSchema>;
+
+export const RetrievalSettingsRecordSchema = z.object({
+  _id: z.string().min(1),
+  rerankingEnabled: z.boolean(),
+  queryRewriteEnabled: z.boolean(),
+  updatedAt: z.date(),
+});
+export type RetrievalSettingsRecord = z.infer<typeof RetrievalSettingsRecordSchema>;
+
+export const RetrievalSettingsResponseSchema = z.object({
+  rerankingEnabled: z.boolean(),
+  queryRewriteEnabled: z.boolean(),
+  rerankerAvailable: z.boolean(),
+});
+export type RetrievalSettingsResponse = z.infer<typeof RetrievalSettingsResponseSchema>;
+
+export const UpdateRetrievalSettingsSchema = z.object({
+  rerankingEnabled: z.boolean(),
+  queryRewriteEnabled: z.boolean(),
+});
+
+export const ContextualEnrichmentCacheSchema = z.object({
+  _id: z.string().min(1),
+  organizationId: z.string().min(1),
+  documentId: z.string().uuid(),
+  chunkIndex: z.number().int().nonnegative(),
+  context: z.string().min(1).max(500),
+  createdAt: z.date(),
+  expiresAt: z.date(),
+});
+export type ContextualEnrichmentCache = z.infer<typeof ContextualEnrichmentCacheSchema>;
 
 export const ChatCitationSchema = z.object({
   chunkId: z.string(),

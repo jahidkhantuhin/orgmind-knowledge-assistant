@@ -123,6 +123,7 @@ describe('vector retrieval service', () => {
         chunkId: 'chunk-hybrid',
         documentName: 'Finance policy.pdf',
         chunkIndex: 4,
+        fusedRank: 1,
         vectorRank: 2,
         vectorScore: 0.87,
         keywordRank: 1,

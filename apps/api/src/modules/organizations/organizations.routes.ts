@@ -18,6 +18,10 @@ import {
   reingestDocumentController,
   uploadDocumentController,
 } from '../documents/documents.controller.js';
+import {
+  getRetrievalSettingsController,
+  updateRetrievalSettingsController,
+} from './retrieval-settings.controller.js';
 
 export const organizationsRouter = Router();
 
@@ -62,6 +66,18 @@ organizationsRouter.post(
   requireAuth,
   requireOrganizationRole(['admin', 'member', 'viewer']),
   streamChatController,
+);
+organizationsRouter.get(
+  '/:organizationId/chat/retrieval-settings',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  getRetrievalSettingsController,
+);
+organizationsRouter.patch(
+  '/:organizationId/chat/retrieval-settings',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  updateRetrievalSettingsController,
 );
 
 organizationsRouter.get(

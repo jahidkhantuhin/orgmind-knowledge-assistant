@@ -551,7 +551,8 @@ function ChatThread({
                                   <th>Chunk</th>
                                   <th>Vector rank / score</th>
                                   <th>Keyword rank / score</th>
-                                  <th>Fused</th>
+                                  <th>Fused rank / score</th>
+                                  <th>Rerank rank / score</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -567,7 +568,12 @@ function ChatThread({
                                       {row.keywordRank ?? '—'} /{' '}
                                       {row.keywordScore?.toFixed(4) ?? '—'}
                                     </td>
-                                    <td>{row.fusedScore.toFixed(5)}</td>
+                                    <td>
+                                      {row.fusedRank ?? '—'} / {row.fusedScore.toFixed(5)}
+                                    </td>
+                                    <td>
+                                      {row.rerankRank ?? '—'} / {row.rerankScore?.toFixed(4) ?? '—'}
+                                    </td>
                                   </tr>
                                 ))}
                               </tbody>

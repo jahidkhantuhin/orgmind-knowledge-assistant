@@ -4,13 +4,13 @@ import { env } from '../../config/env.js';
 
 export interface ChatModelProvider {
   readonly modelId: string;
-  getModel(): LanguageModel;
+  getModel(_modelId?: string): LanguageModel;
 }
 
 export const chatModelProvider: ChatModelProvider = {
   modelId: env.CHAT_MODEL,
-  getModel() {
+  getModel(modelId = env.CHAT_MODEL) {
     if (!env.GOOGLE_API_KEY) throw new Error('Set GOOGLE_API_KEY before starting a chat.');
-    return createGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY })(env.CHAT_MODEL);
+    return createGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY })(modelId);
   },
 };

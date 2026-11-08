@@ -1,8 +1,12 @@
 import { headers } from 'next/headers';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { OrganizationMembersResponseSchema } from '@orgmind/shared';
+import {
+  OrganizationMembersResponseSchema,
+  RetrievalSettingsResponseSchema,
+} from '@orgmind/shared';
 import { ThemeToggle } from '../../../components/theme-toggle';
+import { RetrievalSettingsPanel } from '../../../components/retrieval-settings-panel';
 import { getCurrentUser } from '../../../lib/current-user';
 
 const apiUrl =
@@ -21,6 +25,12 @@ export default async function MembersPage() {
   );
   if (!response.ok) throw new Error('Unable to load organization members.');
   const { members } = OrganizationMembersResponseSchema.parse(await response.json());
+  const settingsResponse = await fetch(
+    `${apiUrl}/organizations/${encodeURIComponent(organization.organizationId)}/chat/retrieval-settings`,
+    { headers: { cookie }, cache: 'no-store' },
+  );
+  if (!settingsResponse.ok) throw new Error('Unable to load retrieval settings.');
+  const retrievalSettings = RetrievalSettingsResponseSchema.parse(await settingsResponse.json());
 
   return (
     <main className="members-page">
@@ -76,6 +86,10 @@ export default async function MembersPage() {
           </div>
         )}
       </section>
+      <RetrievalSettingsPanel
+        organizationId={organization.organizationId}
+        initialSettings={retrievalSettings}
+      />
     </main>
   );
 }

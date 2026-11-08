@@ -7,6 +7,8 @@ import { usersRepository } from '../../modules/users/users.repository.js';
 import { documentsRepository } from '../../modules/documents/documents.repository.js';
 import { chunksRepository } from '../../modules/documents/chunks.repository.js';
 import { chatRepository } from '../../modules/chat/chat.repository.js';
+import { contextualEnrichmentRepository } from '../../modules/documents/contextual-enrichment.repository.js';
+import { retrievalSettingsRepository } from '../../modules/organizations/retrieval-settings.repository.js';
 
 export async function runMigrations(): Promise<void> {
   const database = getDatabase();
@@ -42,6 +44,12 @@ export async function runMigrations(): Promise<void> {
   );
   await applyMigration(migrations, '003-chunk-indexes', () => chunksRepository.ensureIndexes());
   await applyMigration(migrations, '004-chat-indexes', () => chatRepository.ensureIndexes());
+  await applyMigration(migrations, '005-retrieval-settings-context-cache-indexes', async () => {
+    await Promise.all([
+      contextualEnrichmentRepository.ensureIndexes(),
+      retrievalSettingsRepository.ensureIndexes(),
+    ]);
+  });
 }
 
 async function applyMigration(

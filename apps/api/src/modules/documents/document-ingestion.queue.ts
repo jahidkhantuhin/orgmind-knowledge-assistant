@@ -9,6 +9,7 @@ import { extractDocumentText } from './text-extraction.service.js';
 import { chunkDocumentText, type TextChunk } from './chunking.service.js';
 import { embeddingProvider } from './embedding.service.js';
 import { documentIngestionRepository } from './document-ingestion.repository.js';
+import { contextualEnrichmentService } from './contextual-enrichment.service.js';
 
 export const DOCUMENT_INGESTION_QUEUE = 'document-ingestion';
 
@@ -53,6 +54,12 @@ type ProcessorDependencies = {
   readFile: (_key: string) => Promise<Buffer>;
   extractText: typeof extractDocumentText;
   chunkText: (_text: string) => TextChunk[];
+  enrichTexts?: (_input: {
+    organizationId: string;
+    documentId: string;
+    documentName: string;
+    chunks: TextChunk[];
+  }) => Promise<string[]>;
   embedTexts: (
     _texts: string[],
     _onProgress?: (_completed: number, _total: number) => void | Promise<void>,
@@ -74,6 +81,7 @@ const defaultDependencies: ProcessorDependencies = {
       targetCharacters: env.CHUNK_TARGET_CHARACTERS,
       overlapCharacters: env.CHUNK_OVERLAP_CHARACTERS,
     }),
+  enrichTexts: (input) => contextualEnrichmentService.enrich(input),
   embedTexts: (texts, onProgress) => embeddingProvider.embed(texts, 'document', onProgress),
 };
 
@@ -99,11 +107,19 @@ export function createDocumentIngestionProcessor(
       const textChunks = dependencies.chunkText(extractedText);
       if (textChunks.length === 0)
         throw new Error('No text chunks were created from this document.');
+      const embeddingTexts = await dependencies.enrichTexts?.({
+        organizationId: document.organizationId,
+        documentId: document._id,
+        documentName: document.originalName,
+        chunks: textChunks,
+      });
+      const textsToEmbed = embeddingTexts ?? textChunks.map((chunk) => chunk.text);
+      if (textsToEmbed.length !== textChunks.length) {
+        throw new Error('The enrichment service returned a different text count than requested.');
+      }
       await dependencies.markEmbedding(document._id);
-      const embeddings = await dependencies.embedTexts(
-        textChunks.map((chunk) => chunk.text),
-        (completed, total) =>
-          dependencies.updateProgress?.(document._id, 10 + (85 * completed) / total),
+      const embeddings = await dependencies.embedTexts(textsToEmbed, (completed, total) =>
+        dependencies.updateProgress?.(document._id, 10 + (85 * completed) / total),
       );
       if (embeddings.length !== textChunks.length) {
         throw new Error('The embedding provider returned a different vector count than requested.');

@@ -53,3 +53,11 @@
 - Pinned Atlas Local in Docker Compose to `mongodb-atlas-local:8.3.9`; MongoDB `$rankFusion` requires version 8.0 or later, and this image provides the Search and Vector Search services used by the existing indexes.
 - Added unit coverage for the hybrid aggregation pipeline and an opt-in local MongoDB integration test that creates temporary indexes and fixture data. The integration test skips when MongoDB cannot be reached.
 - Configure `CHAT_RETRIEVAL_STRATEGY`, `CHAT_VECTOR_SEARCH_WEIGHT`, and `CHAT_KEYWORD_SEARCH_WEIGHT` in `.env`. See the README for image upgrade commands and verification steps.
+
+## Step 7: Reranking and contextual retrieval
+
+- Added a reranker interface with a Cohere Rerank API v2 implementation (`rerank-v5.0-fast`) that reranks configured top-N hybrid or vector candidates and preserves graceful fallback to the original retrieval order on provider errors.
+- Added a Gemini-backed query rewriting service with fallback to the original question. Workspace admins can enable reranking and query rewriting through **Settings → Members → Retrieval settings**; API routes enforce admin role checks and persist organization settings.
+- Added optional contextual chunk enrichment before embedding. Generated sentences are cached per organization, document, chunk content, and model in MongoDB with TTL expiry and document-delete cleanup. It is disabled by default to avoid extra ingestion cost and latency.
+- Extended development retrieval diagnostics with fused and rerank ranks/scores. Added mocked reranker tests and enrichment cache unit tests.
+- Configure `COHERE_API_KEY`, `COHERE_RERANK_MODEL`, and `CHAT_RERANK_CANDIDATE_COUNT` for reranking. Set `CONTEXTUAL_ENRICHMENT_ENABLED=true` to enrich future ingestion or reprocessing jobs; see `.env.example` and README for defaults and verification.
