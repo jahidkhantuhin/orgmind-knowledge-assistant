@@ -11,6 +11,7 @@ describe('hybrid retrieval pipeline builder', () => {
       query: 'invoice retention',
       queryVector: [0.25, 0.75],
       organizationId: 'org-1',
+      aclTokens: ['user:user-1', 'group:team-1', 'role:member'],
       limit: 5,
       weights: { vector: 0.7, keyword: 0.3 },
     });
@@ -24,7 +25,12 @@ describe('hybrid retrieval pipeline builder', () => {
       index: CHUNKS_VECTOR_INDEX_NAME,
       path: 'embedding',
       queryVector: [0.25, 0.75],
-      filter: { $and: [{ orgId: 'org-1' }, { collectionId: 'default' }] },
+      filter: {
+        $and: [
+          { orgId: 'org-1' },
+          { $or: [{ acl: 'user:user-1' }, { acl: 'group:team-1' }, { acl: 'role:member' }] },
+        ],
+      },
     });
     expect((fusion.input.pipelines.keyword ?? [])[0]?.$search).toMatchObject({
       index: CHUNKS_TEXT_INDEX_NAME,
@@ -32,7 +38,16 @@ describe('hybrid retrieval pipeline builder', () => {
         must: [{ text: { query: 'invoice retention', path: 'text' } }],
         filter: [
           { equals: { path: 'orgId', value: 'org-1' } },
-          { equals: { path: 'collectionId', value: 'default' } },
+          {
+            compound: {
+              should: [
+                { equals: { path: 'acl', value: 'user:user-1' } },
+                { equals: { path: 'acl', value: 'group:team-1' } },
+                { equals: { path: 'acl', value: 'role:member' } },
+              ],
+              minimumShouldMatch: 1,
+            },
+          },
         ],
       },
     });

@@ -9,6 +9,8 @@ import { chunksRepository } from '../../modules/documents/chunks.repository.js';
 import { chatRepository } from '../../modules/chat/chat.repository.js';
 import { contextualEnrichmentRepository } from '../../modules/documents/contextual-enrichment.repository.js';
 import { retrievalSettingsRepository } from '../../modules/organizations/retrieval-settings.repository.js';
+import { groupsRepository } from '../../modules/organizations/groups.repository.js';
+import { documentCollectionsRepository } from '../../modules/documents/document-collections.repository.js';
 
 export async function runMigrations(): Promise<void> {
   const database = getDatabase();
@@ -49,6 +51,30 @@ export async function runMigrations(): Promise<void> {
       contextualEnrichmentRepository.ensureIndexes(),
       retrievalSettingsRepository.ensureIndexes(),
     ]);
+  });
+  await applyMigration(migrations, '006-acl-backfill', async () => {
+    const workspaceAcl = ['role:admin', 'role:member', 'role:viewer'];
+    await Promise.all([
+      database
+        .collection('documents')
+        .updateMany(
+          { $or: [{ acl: { $exists: false } }, { acl: { $size: 0 } }] },
+          { $set: { acl: workspaceAcl, collectionId: 'default' } },
+        ),
+      database
+        .collection('chunks')
+        .updateMany(
+          { $or: [{ acl: { $exists: false } }, { acl: { $size: 0 } }] },
+          { $set: { acl: workspaceAcl, collectionId: 'default' } },
+        ),
+    ]);
+  });
+  await applyMigration(migrations, '007-team-group-indexes', () =>
+    groupsRepository.ensureIndexes(),
+  );
+  await applyMigration(migrations, '008-document-collection-access', async () => {
+    await documentCollectionsRepository.ensureIndexes();
+    await documentCollectionsRepository.backfillFromDocuments();
   });
 }
 

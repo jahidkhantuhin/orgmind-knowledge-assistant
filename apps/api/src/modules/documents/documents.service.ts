@@ -7,6 +7,7 @@ import {
   type DocumentDetailResponse,
   type DocumentRecord,
   type DocumentSummary,
+  type MembershipRole,
 } from '@orgmind/shared';
 import type { Express } from 'express';
 import { logger } from '../../lib/logger.js';
@@ -15,12 +16,16 @@ import { documentsRepository } from './documents.repository.js';
 import { chunksRepository } from './chunks.repository.js';
 import { documentIngestionRepository } from './document-ingestion.repository.js';
 import { localDocumentStorage, mimeTypeForExtension } from './document-storage.js';
+import { aclTokensForGrant, canReadAcl } from './document-acl.js';
+import { documentCollectionsRepository } from './document-collections.repository.js';
 
 function toSummary(document: DocumentRecord): DocumentSummary {
   return DocumentSummarySchema.parse({
     id: document._id,
     organizationId: document.organizationId,
     ownerId: document.ownerId,
+    collectionId: document.collectionId,
+    acl: document.acl,
     originalName: document.originalName,
     extension: document.extension,
     mimeType: document.mimeType,
@@ -36,15 +41,20 @@ function toSummary(document: DocumentRecord): DocumentSummary {
 }
 
 export const documentsService = {
-  async list(organizationId: string): Promise<DocumentSummary[]> {
-    return (await documentsRepository.listByOrganization(organizationId)).map(toSummary);
+  async list(organizationId: string, aclTokens: string[]): Promise<DocumentSummary[]> {
+    return (await documentsRepository.listByOrganization(organizationId, aclTokens)).map(toSummary);
   },
 
   async getDetail(
     organizationId: string,
     documentId: string,
+    aclTokens: string[],
   ): Promise<DocumentDetailResponse | null> {
-    const document = await documentsRepository.findByIdInOrganization(documentId, organizationId);
+    const document = await documentsRepository.findByIdInOrganization(
+      documentId,
+      organizationId,
+      aclTokens,
+    );
     if (!document) return null;
     return DocumentDetailResponseSchema.parse({
       document: toSummary(document),
@@ -52,8 +62,17 @@ export const documentsService = {
     });
   },
 
-  async listChunkPreviews(organizationId: string, documentId: string, afterChunkIndex: number) {
-    const document = await documentsRepository.findByIdInOrganization(documentId, organizationId);
+  async listChunkPreviews(
+    organizationId: string,
+    documentId: string,
+    afterChunkIndex: number,
+    aclTokens: string[],
+  ) {
+    const document = await documentsRepository.findByIdInOrganization(
+      documentId,
+      organizationId,
+      aclTokens,
+    );
     if (!document) return null;
     return chunksRepository.listPreviewPageByDocument(documentId, afterChunkIndex);
   },
@@ -63,12 +82,24 @@ export const documentsService = {
     ownerId: string,
     file: Express.Multer.File,
     extension: DocumentExtension,
+    collectionId = 'default',
+    principalTokens: string[],
   ): Promise<DocumentSummary> {
     const now = new Date();
+    const inheritedAcl = await documentCollectionsRepository.getOrCreate(
+      organizationId,
+      collectionId,
+      ['role:admin', 'role:member', 'role:viewer'],
+    );
+    if (!canReadAcl(inheritedAcl, principalTokens)) {
+      throw new DocumentAccessDeniedError();
+    }
     const document = DocumentRecordSchema.parse({
       _id: randomUUID(),
       organizationId,
       ownerId,
+      collectionId,
+      acl: [...new Set([...inheritedAcl, `user:${ownerId}`])],
       originalName: file.originalname.replace(/[\\/]/g, '_').slice(0, 255),
       extension,
       mimeType: mimeTypeForExtension(extension),
@@ -103,7 +134,45 @@ export const documentsService = {
     return toSummary(document);
   },
 
-  async delete(organizationId: string, documentId: string): Promise<boolean> {
+  async shareCollection(
+    organizationId: string,
+    collectionId: string,
+    grants: { roles: MembershipRole[]; userIds: string[]; groupIds: string[] },
+  ): Promise<boolean> {
+    const count = await documentIngestionRepository.updateCollectionAccess(
+      organizationId,
+      collectionId,
+      aclTokensForGrant(grants),
+    );
+    return count > 0;
+  },
+
+  async getCollectionAccess(
+    organizationId: string,
+    collectionId: string,
+  ): Promise<string[] | null> {
+    return documentCollectionsRepository.get(organizationId, collectionId);
+  },
+
+  async shareDocument(
+    organizationId: string,
+    documentId: string,
+    grants: { roles: MembershipRole[]; userIds: string[]; groupIds: string[] },
+  ): Promise<boolean> {
+    return documentIngestionRepository.updateDocumentAccess(
+      organizationId,
+      documentId,
+      aclTokensForGrant(grants),
+    );
+  },
+
+  async delete(organizationId: string, documentId: string, aclTokens: string[]): Promise<boolean> {
+    const accessible = await documentsRepository.findByIdInOrganization(
+      documentId,
+      organizationId,
+      aclTokens,
+    );
+    if (!accessible) return false;
     const document = await documentIngestionRepository.deleteDocumentAndChunks(
       documentId,
       organizationId,
@@ -127,8 +196,16 @@ export const documentsService = {
     return true;
   },
 
-  async reingest(organizationId: string, documentId: string): Promise<DocumentSummary | null> {
-    const document = await documentsRepository.findByIdInOrganization(documentId, organizationId);
+  async reingest(
+    organizationId: string,
+    documentId: string,
+    aclTokens: string[],
+  ): Promise<DocumentSummary | null> {
+    const document = await documentsRepository.findByIdInOrganization(
+      documentId,
+      organizationId,
+      aclTokens,
+    );
     if (!document) return null;
     if (['parsing', 'chunking', 'embedding'].includes(document.status)) {
       throw new DocumentBusyError();
@@ -162,5 +239,14 @@ export class DocumentBusyError extends Error {
   constructor() {
     super('This document is already being processed. Try again when it is finished.');
     this.name = 'DocumentBusyError';
+  }
+}
+
+export class DocumentAccessDeniedError extends Error {
+  readonly statusCode = 403;
+  readonly code = 'DOCUMENT_ACCESS_DENIED';
+  constructor() {
+    super('You do not have access to this folder.');
+    this.name = 'DocumentAccessDeniedError';
   }
 }

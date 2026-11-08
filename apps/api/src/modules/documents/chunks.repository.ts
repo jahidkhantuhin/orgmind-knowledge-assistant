@@ -110,6 +110,32 @@ export const chunksRepository = {
     await chunks().deleteMany({ documentId }, session ? { session } : {});
   },
 
+  async updateAccessForCollection(
+    organizationId: string,
+    collectionId: string,
+    acl: string[],
+    session?: ClientSession,
+  ): Promise<void> {
+    await chunks().updateMany(
+      { orgId: organizationId, collectionId },
+      { $set: { acl } },
+      session ? { session } : {},
+    );
+  },
+
+  async updateAccessForDocument(
+    organizationId: string,
+    documentId: string,
+    acl: string[],
+    session?: ClientSession,
+  ): Promise<void> {
+    await chunks().updateMany(
+      { orgId: organizationId, documentId },
+      { $set: { acl } },
+      session ? { session } : {},
+    );
+  },
+
   async countByDocument(documentId: string): Promise<number> {
     return chunks().countDocuments({ documentId });
   },
@@ -147,6 +173,7 @@ export const chunksRepository = {
   async searchSimilar(
     queryVector: readonly number[],
     organizationId: string,
+    aclTokens: string[],
     limit: number,
   ): Promise<SimilarChunk[]> {
     const rows = await chunks()
@@ -166,7 +193,10 @@ export const chunksRepository = {
             numCandidates: Math.max(100, limit * 20),
             limit,
             filter: {
-              $and: [{ orgId: organizationId }, { collectionId: 'default' }],
+              $and: [
+                { orgId: organizationId },
+                { $or: aclTokens.map((token) => ({ acl: token })) },
+              ],
             },
           },
         },
@@ -189,6 +219,7 @@ export const chunksRepository = {
     query: string,
     queryVector: readonly number[],
     organizationId: string,
+    aclTokens: string[],
     limit: number,
     weights: HybridRetrievalWeights,
   ): Promise<SimilarChunk[]> {
@@ -201,7 +232,16 @@ export const chunksRepository = {
         headingPath: string[];
         fusedScore: number;
         scoreDetails?: FusionScoreDetails;
-      }>(buildHybridRetrievalPipeline({ query, queryVector, organizationId, limit, weights }))
+      }>(
+        buildHybridRetrievalPipeline({
+          query,
+          queryVector,
+          organizationId,
+          aclTokens,
+          limit,
+          weights,
+        }),
+      )
       .toArray();
     return rows.map((row) => {
       const debug = retrievalDebug(row.scoreDetails);

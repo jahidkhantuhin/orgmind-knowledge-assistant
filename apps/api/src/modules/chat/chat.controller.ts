@@ -25,6 +25,8 @@ import { chatRepository } from './chat.repository.js';
 import { chatModelProvider } from './chat-model.provider.js';
 import { retrievalService } from './retrieval.service.js';
 import { LOW_CONFIDENCE_ANSWER, buildGroundedSystemPrompt } from './prompt.builder.js';
+import { aclTokensForPrincipal } from '../documents/document-acl.js';
+import { documentsRepository } from '../documents/documents.repository.js';
 
 function routeParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -50,6 +52,45 @@ function toMessageResponse(record: Awaited<ReturnType<typeof chatRepository.addM
     citations: citationsReferencedInAnswer(record.content, record.citations),
     retrievalDebug: record.retrievalDebug,
     createdAt: record.createdAt.toISOString(),
+  });
+}
+
+async function messagesWithCurrentAccess(
+  messages: Awaited<ReturnType<typeof chatRepository.listMessages>>,
+  organizationId: string,
+  aclTokens: string[],
+) {
+  const documentIds = [
+    ...new Set(
+      messages.flatMap((message) =>
+        message.role === 'assistant'
+          ? [
+              ...message.citations.map((citation) => citation.documentId),
+              ...message.retrievalDebug.flatMap((item) =>
+                item.documentId ? [item.documentId] : [],
+              ),
+            ]
+          : [],
+      ),
+    ),
+  ];
+  const accessibleDocuments = await documentsRepository.findByIdsInOrganization(
+    documentIds,
+    organizationId,
+    aclTokens,
+  );
+  const accessibleIds = new Set(accessibleDocuments.map((document) => document._id));
+  return messages.flatMap((message) => {
+    if (message.role !== 'assistant') return [message];
+    if (message.citations.some((citation) => !accessibleIds.has(citation.documentId))) return [];
+    return [
+      {
+        ...message,
+        retrievalDebug: message.retrievalDebug.filter(
+          (item) => item.documentId && accessibleIds.has(item.documentId),
+        ),
+      },
+    ];
   });
 }
 
@@ -102,7 +143,16 @@ export const getConversationController: RequestHandler = async (req, res) => {
     res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Conversation not found.' } });
     return;
   }
-  const messages = await chatRepository.listMessages(conversationId);
+  const aclTokens = aclTokensForPrincipal(
+    userId,
+    req.membership?.role ?? 'viewer',
+    req.membership?.groupIds ?? [],
+  );
+  const messages = await messagesWithCurrentAccess(
+    await chatRepository.listMessages(conversationId),
+    organizationId,
+    aclTokens,
+  );
   res.json(
     ConversationMessagesResponseSchema.parse({
       conversation: toConversationSummary(conversation),
@@ -223,8 +273,17 @@ export const streamChatController: RequestHandler = async (req, res) => {
     content: question,
     citations: [],
   });
-  const priorMessages = await chatRepository.listMessages(conversation._id);
-  const retrieval = await retrievalService.retrieve(question, organizationId);
+  const aclTokens = aclTokensForPrincipal(
+    userId,
+    req.membership?.role ?? 'viewer',
+    req.membership?.groupIds ?? [],
+  );
+  const priorMessages = await messagesWithCurrentAccess(
+    await chatRepository.listMessages(conversation._id),
+    organizationId,
+    aclTokens,
+  );
+  const retrieval = await retrievalService.retrieve(question, organizationId, aclTokens);
   const isLowConfidence = retrieval.citations.length === 0;
   const citations = retrieval.citations;
   const modelMessages: ModelMessage[] = priorMessages.slice(-20).map((message) => ({

@@ -12,6 +12,8 @@ const document: DocumentRecord = {
   _id: 'edac42f2-c30e-4ea8-9428-4757e3562212',
   organizationId: 'org-1',
   ownerId: 'user-1',
+  collectionId: 'default',
+  acl: ['role:admin', 'role:member', 'role:viewer'],
   originalName: 'handbook.txt',
   extension: 'txt',
   mimeType: 'text/plain',

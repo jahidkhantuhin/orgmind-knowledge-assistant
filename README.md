@@ -57,6 +57,24 @@ pnpm --filter @orgmind/api test
 
 Set `COHERE_API_KEY` in `.env`, run migrations, and enable **Rerank search results** in admin settings to verify Cohere ordering. Enable **Rewrite search queries** there to verify query rewriting. To verify enrichment, set `CONTEXTUAL_ENRICHMENT_ENABLED=true`, reprocess a document, then reprocess it again and confirm the second pass uses cached contexts.
 
+## Step 8: Permission-aware retrieval
+
+Documents can be shared by workspace role, individual account, or team group. Workspace admins always retain access. In **Settings → Members**, an admin can add an existing OrgMind account by email, create groups, and assign workspace members to groups. The person must register before being added; this local setup does not send invitations. When a person belongs to multiple workspaces, use the workspace selector in the sidebar to switch between them.
+
+In **Knowledge base**, set a folder name before upload. Admins can select **Share** on a document and apply its access to just that document or the entire folder. New uploads inherit the folder's permissions and include the uploader. A document-only permission change leaves the folder's default policy intact. Role, user, and group ACL tokens are copied to each chunk. Permission changes update document and chunk records in one MongoDB transaction. Older documents and chunks stay workspace-visible through migration `006-acl-backfill`; migration `008-document-collection-access` initializes their folder policies.
+
+The API filters by organization and ACL inside both the MongoDB `$vectorSearch` leg and the `$search` leg of `$rankFusion`; the vector-only strategy also applies the ACL prefilter. The application does not retrieve unrestricted candidates and filter them afterward. Document listing, details, chunk previews, deletion, and reprocessing also check the caller's access. Conversation history and prior model context omit assistant answers whose cited documents the user can no longer access.
+
+To try it locally:
+
+```powershell
+pnpm db:migrate
+pnpm --filter @orgmind/api test
+pnpm dev
+```
+
+Register a second account in a private browser window. As the admin, open **Settings → Members**, add that account by email, create a team group, and assign the account to the group. Upload a test document into a folder such as `people-ops`, select **Share**, choose **Entire folder**, select the group, and click **Save access**. Sign in as the added account, switch to the shared workspace, and ask a question answered by that document. Remove the account from the group and retry; the document should no longer appear in its Knowledge base list or in retrieved citations. The MongoDB hybrid retrieval integration test creates temporary indexes and skips when the configured MongoDB service is unavailable.
+
 ## Quick start
 
 Requirements: Node.js 22.13+, pnpm 11.28+, and Docker Compose.

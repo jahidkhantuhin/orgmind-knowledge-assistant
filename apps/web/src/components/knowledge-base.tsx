@@ -8,6 +8,7 @@ import {
   type MembershipRole,
 } from '@orgmind/shared';
 import { ThemeToggle } from './theme-toggle';
+import { CollectionShareControl } from './collection-share-control';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -57,6 +58,7 @@ export function KnowledgeBase({
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [collectionName, setCollectionName] = useState('default');
   const inputRef = useRef<HTMLInputElement>(null);
   const canManage = role === 'admin' || role === 'member';
 
@@ -101,6 +103,13 @@ export function KnowledgeBase({
     try {
       const form = new FormData();
       form.append('file', file);
+      form.append(
+        'collectionId',
+        collectionName
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9_-]+/g, '-') || 'default',
+      );
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/documents`,
         { method: 'POST', credentials: 'include', body: form },
@@ -192,6 +201,17 @@ export function KnowledgeBase({
             <div className="upload-icon">↑</div>
             <h2>{busy ? 'Uploading your document…' : 'Drop a document to add it'}</h2>
             <p>PDF, DOCX, Markdown, or TXT · up to 10 MB</p>
+            <label className="folder-input-label" htmlFor="upload-folder">
+              Folder
+            </label>
+            <input
+              className="folder-input"
+              id="upload-folder"
+              value={collectionName}
+              onChange={(event) => setCollectionName(event.target.value)}
+              maxLength={80}
+              placeholder="default"
+            />
             <button
               className="primary-button"
               type="button"
@@ -244,6 +264,7 @@ export function KnowledgeBase({
                     <th>Size</th>
                     <th>Added</th>
                     <th>Status</th>
+                    <th>Folder</th>
                     {canManage && (
                       <th>
                         <span className="visually-hidden">Actions</span>
@@ -303,8 +324,20 @@ export function KnowledgeBase({
                           </span>
                         )}
                       </td>
+                      <td>
+                        <span className="folder-pill">{document.collectionId}</span>
+                      </td>
                       {canManage && (
                         <td>
+                          {role === 'admin' && (
+                            <CollectionShareControl
+                              organizationId={organizationId}
+                              collectionId={document.collectionId}
+                              documentId={document.id}
+                              documentName={document.originalName}
+                              acl={document.acl}
+                            />
+                          )}
                           <button
                             className="document-delete"
                             type="button"

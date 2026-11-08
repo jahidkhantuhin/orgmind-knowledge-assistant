@@ -14,6 +14,7 @@ type FixtureChunk = {
   _id: string;
   orgId: string;
   collectionId: string;
+  acl: string[];
   documentId: string;
   chunkIndex: number;
   text: string;
@@ -81,6 +82,7 @@ describe('MongoDB hybrid retrieval integration', () => {
           _id: 'keyword-hit',
           orgId: organizationId,
           collectionId: 'default',
+          acl: ['user:user-1'],
           documentId: randomUUID(),
           chunkIndex: 0,
           text: 'JavaScript object property access uses dot notation or bracket notation.',
@@ -91,6 +93,7 @@ describe('MongoDB hybrid retrieval integration', () => {
           _id: 'vector-hit',
           orgId: organizationId,
           collectionId: 'default',
+          acl: ['group:team-1'],
           documentId: randomUUID(),
           chunkIndex: 1,
           text: 'A value can contain named fields that are read through a key.',
@@ -101,6 +104,7 @@ describe('MongoDB hybrid retrieval integration', () => {
           _id: 'other-tenant',
           orgId: 'another-org',
           collectionId: 'default',
+          acl: ['user:user-1'],
           documentId: randomUUID(),
           chunkIndex: 0,
           text: 'JavaScript object property access uses a key.',
@@ -109,29 +113,35 @@ describe('MongoDB hybrid retrieval integration', () => {
         },
       ]);
 
-      const results = await collection
-        .aggregate<{
-          _id: string;
-          fusedScore: number;
-          scoreDetails: { details?: Array<{ inputPipelineName?: string; rank?: number }> };
-        }>(
-          buildHybridRetrievalPipeline({
-            query: 'JavaScript object property access',
-            queryVector: Array.from({ length: dimensions }, (_value, index) =>
-              index === 0 ? 1 : 0,
-            ),
-            organizationId,
-            limit: 5,
-            weights: { vector: 0.7, keyword: 0.3 },
-          }),
-        )
-        .toArray();
+      const runSearch = (aclTokens: string[]) =>
+        collection
+          .aggregate<{
+            _id: string;
+            fusedScore: number;
+            scoreDetails: { details?: Array<{ inputPipelineName?: string; rank?: number }> };
+          }>(
+            buildHybridRetrievalPipeline({
+              query: 'JavaScript object property access',
+              queryVector: Array.from({ length: dimensions }, (_value, index) =>
+                index === 0 ? 1 : 0,
+              ),
+              organizationId,
+              aclTokens,
+              limit: 5,
+              weights: { vector: 0.7, keyword: 0.3 },
+            }),
+          )
+          .toArray();
+      const results = await runSearch(['user:user-1', 'group:team-1', 'role:member']);
 
       expect(results.map((result) => result._id)).toContain('keyword-hit');
       expect(results.map((result) => result._id)).toContain('vector-hit');
       expect(results.map((result) => result._id)).not.toContain('other-tenant');
       expect(results.every((result) => result.fusedScore > 0)).toBe(true);
       expect(results.every((result) => (result.scoreDetails.details?.length ?? 0) > 0)).toBe(true);
+      const userOnlyResults = await runSearch(['user:user-1']);
+      expect(userOnlyResults.map((result) => result._id)).toEqual(['keyword-hit']);
+      await expect(runSearch(['user:unrelated-user'])).resolves.toHaveLength(0);
     } finally {
       await client
         .db(databaseName)

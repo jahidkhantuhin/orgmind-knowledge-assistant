@@ -10,6 +10,7 @@ export function buildHybridRetrievalPipeline(input: {
   query: string;
   queryVector: readonly number[];
   organizationId: string;
+  aclTokens: string[];
   limit: number;
   weights: HybridRetrievalWeights;
 }): Document[] {
@@ -28,7 +29,10 @@ export function buildHybridRetrievalPipeline(input: {
                   numCandidates: candidateLimit,
                   limit: candidateLimit,
                   filter: {
-                    $and: [{ orgId: input.organizationId }, { collectionId: 'default' }],
+                    $and: [
+                      { orgId: input.organizationId },
+                      { $or: input.aclTokens.map((token) => ({ acl: token })) },
+                    ],
                   },
                 },
               },
@@ -41,7 +45,14 @@ export function buildHybridRetrievalPipeline(input: {
                     must: [{ text: { query: input.query, path: 'text' } }],
                     filter: [
                       { equals: { path: 'orgId', value: input.organizationId } },
-                      { equals: { path: 'collectionId', value: 'default' } },
+                      {
+                        compound: {
+                          should: input.aclTokens.map((token) => ({
+                            equals: { path: 'acl', value: token },
+                          })),
+                          minimumShouldMatch: 1,
+                        },
+                      },
                     ],
                   },
                 },

@@ -32,27 +32,98 @@ export const documentsRepository = {
     return record;
   },
 
-  async findById(id: string): Promise<DocumentRecord | null> {
-    const row = await documents().findOne({ _id: id });
+  async findById(id: string, session?: ClientSession): Promise<DocumentRecord | null> {
+    const row = await documents().findOne({ _id: id }, session ? { session } : {});
     return row ? parseDocument(row) : null;
   },
 
-  async findByIdInOrganization(id: string, organizationId: string): Promise<DocumentRecord | null> {
-    const row = await documents().findOne({ _id: id, organizationId });
+  async findByIdInOrganization(
+    id: string,
+    organizationId: string,
+    aclTokens?: string[],
+  ): Promise<DocumentRecord | null> {
+    const row = await documents().findOne({
+      _id: id,
+      organizationId,
+      ...(aclTokens
+        ? { $or: [{ acl: { $in: aclTokens } }, { acl: { $size: 0 } }, { acl: { $exists: false } }] }
+        : {}),
+    });
     return row ? parseDocument(row) : null;
   },
 
-  async findByIdsInOrganization(ids: string[], organizationId: string): Promise<DocumentRecord[]> {
+  async findByIdsInOrganization(
+    ids: string[],
+    organizationId: string,
+    aclTokens?: string[],
+  ): Promise<DocumentRecord[]> {
     if (ids.length === 0) return [];
     const rows = await documents()
-      .find({ _id: { $in: ids }, organizationId })
+      .find({
+        _id: { $in: ids },
+        organizationId,
+        ...(aclTokens
+          ? {
+              $or: [
+                { acl: { $in: aclTokens } },
+                { acl: { $size: 0 } },
+                { acl: { $exists: false } },
+              ],
+            }
+          : {}),
+      })
       .toArray();
     return rows.map(parseDocument);
   },
 
-  async listByOrganization(organizationId: string): Promise<DocumentRecord[]> {
-    const rows = await documents().find({ organizationId }).sort({ createdAt: -1 }).toArray();
+  async listByOrganization(
+    organizationId: string,
+    aclTokens?: string[],
+  ): Promise<DocumentRecord[]> {
+    const rows = await documents()
+      .find({
+        organizationId,
+        ...(aclTokens
+          ? {
+              $or: [
+                { acl: { $in: aclTokens } },
+                { acl: { $size: 0 } },
+                { acl: { $exists: false } },
+              ],
+            }
+          : {}),
+      })
+      .sort({ createdAt: -1 })
+      .toArray();
     return rows.map(parseDocument);
+  },
+
+  async updateCollectionAccess(
+    organizationId: string,
+    collectionId: string,
+    acl: string[],
+    session?: ClientSession,
+  ): Promise<number> {
+    const result = await documents().updateMany(
+      { organizationId, collectionId },
+      { $set: { acl, updatedAt: new Date() } },
+      session ? { session } : {},
+    );
+    return result.matchedCount;
+  },
+
+  async updateDocumentAccess(
+    organizationId: string,
+    documentId: string,
+    acl: string[],
+    session?: ClientSession,
+  ): Promise<boolean> {
+    const result = await documents().updateOne(
+      { organizationId, _id: documentId },
+      { $set: { acl, updatedAt: new Date() } },
+      session ? { session } : {},
+    );
+    return result.matchedCount === 1;
   },
 
   async setStatus(id: string, status: DocumentStatus): Promise<void> {

@@ -61,3 +61,14 @@
 - Added optional contextual chunk enrichment before embedding. Generated sentences are cached per organization, document, chunk content, and model in MongoDB with TTL expiry and document-delete cleanup. It is disabled by default to avoid extra ingestion cost and latency.
 - Extended development retrieval diagnostics with fused and rerank ranks/scores. Added mocked reranker tests and enrichment cache unit tests.
 - Configure `COHERE_API_KEY`, `COHERE_RERANK_MODEL`, and `CHAT_RERANK_CANDIDATE_COUNT` for reranking. Set `CONTEXTUAL_ENRICHMENT_ENABLED=true` to enrich future ingestion or reprocessing jobs; see `.env.example` and README for defaults and verification.
+
+## Step 8: Permission-aware retrieval
+
+- Added role, direct-user, and team-group ACL grants to documents and their chunks. Existing documents and chunks are backfilled as workspace-visible by migration `006-acl-backfill`; admins always retain access.
+- Applied organization and ACL prefilters inside both `$vectorSearch` and `$search` in hybrid retrieval, and inside vector-only retrieval. Document lists, details, chunk previews, upload-to-folder, delete, and reprocess operations also enforce document access.
+- Filtered stored assistant messages and retrieval diagnostics against the current ACL before returning conversation history or sending prior assistant context to the model; revoked-source answers are omitted.
+- Added folder IDs to document uploads, plus admin sharing for one document or every document in a folder. ACL updates to documents and their chunks run in a MongoDB transaction.
+- Added independent folder access policies: newly uploaded files inherit the folder policy, while document-only sharing does not alter folder defaults. Existing folder policies are backfilled by migration `008-document-collection-access`.
+- Added admin controls to add an existing OrgMind account to a workspace, create team groups, and assign members to groups. A workspace selector lets members switch to an organization they have joined. Adding a member does not send email; the account must already exist.
+- Added ACL pipeline tests for both hybrid legs, principal role/user/group tests, and an optional MongoDB integration test for user, group, and cross-organization filtering. The integration test skips when MongoDB is unavailable.
+- No new environment variables. Run `pnpm db:migrate` before testing so the ACL backfill and team-group index are applied.

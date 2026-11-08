@@ -35,6 +35,7 @@ export async function listMembershipsForUser(userId: string): Promise<Organizati
         organizationName: organization.name,
         organizationSlug: organization.slug,
         role: membership.role,
+        groupIds: membership.groupIds,
       }),
     ];
   });

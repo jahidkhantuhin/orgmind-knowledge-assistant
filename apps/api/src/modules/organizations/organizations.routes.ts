@@ -1,6 +1,12 @@
 import { Router } from 'express';
 import { requireOrganizationRole, requireAuth } from '../../auth/auth.middleware.js';
-import { listMembersController } from './organizations.controller.js';
+import {
+  createTeamGroupController,
+  addOrganizationMemberController,
+  listMembersController,
+  listTeamGroupsController,
+  updateMemberGroupsController,
+} from './organizations.controller.js';
 import {
   createConversationController,
   deleteConversationController,
@@ -17,6 +23,9 @@ import {
   listDocumentsController,
   reingestDocumentController,
   uploadDocumentController,
+  updateCollectionAccessController,
+  updateDocumentAccessController,
+  getCollectionAccessController,
 } from '../documents/documents.controller.js';
 import {
   getRetrievalSettingsController,
@@ -30,6 +39,30 @@ organizationsRouter.get(
   requireAuth,
   requireOrganizationRole(['admin']),
   listMembersController,
+);
+organizationsRouter.post(
+  '/:organizationId/members',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  addOrganizationMemberController,
+);
+organizationsRouter.get(
+  '/:organizationId/groups',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  listTeamGroupsController,
+);
+organizationsRouter.post(
+  '/:organizationId/groups',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  createTeamGroupController,
+);
+organizationsRouter.patch(
+  '/:organizationId/members/:userId/groups',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  updateMemberGroupsController,
 );
 organizationsRouter.get(
   '/:organizationId/chat/conversations',
@@ -60,6 +93,24 @@ organizationsRouter.delete(
   requireAuth,
   requireOrganizationRole(['admin', 'member', 'viewer']),
   deleteConversationController,
+);
+organizationsRouter.patch(
+  '/:organizationId/collections/:collectionId/access',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  updateCollectionAccessController,
+);
+organizationsRouter.get(
+  '/:organizationId/collections/:collectionId/access',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  getCollectionAccessController,
+);
+organizationsRouter.patch(
+  '/:organizationId/documents/:documentId/access',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  updateDocumentAccessController,
 );
 organizationsRouter.post(
   '/:organizationId/chat',

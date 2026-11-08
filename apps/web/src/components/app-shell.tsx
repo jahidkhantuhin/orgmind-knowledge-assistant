@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ApiStatus } from './api-status';
 import { ThemeToggle } from './theme-toggle';
@@ -9,6 +10,8 @@ import type { AuthMeResponse } from '@orgmind/shared';
 import { SignOutButton } from './sign-out-button';
 
 function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
+  const router = useRouter();
+  const [workspaceError, setWorkspaceError] = useState('');
   const organization = currentUser.organizations[0];
   const firstName = currentUser.user.name.trim().split(/\s+/)[0] || currentUser.user.name;
   const initials = currentUser.user.name
@@ -17,6 +20,21 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
+
+  async function switchWorkspace(organizationId: string) {
+    setWorkspaceError('');
+    const response = await fetch('/api/workspace', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ organizationId }),
+    });
+    if (!response.ok) {
+      setWorkspaceError('Could not switch workspace.');
+      return;
+    }
+    router.push('/');
+    router.refresh();
+  }
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -26,7 +44,25 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
             orgmind<span className="brand-dot">.</span>
           </span>
         </Link>
-        <div className="workspace-label">{organization?.organizationName ?? 'WORKSPACE'}</div>
+        {currentUser.organizations.length > 1 ? (
+          <label className="workspace-switcher">
+            <span>WORKSPACE</span>
+            <select
+              aria-label="Active workspace"
+              value={organization?.organizationId ?? ''}
+              onChange={(event) => void switchWorkspace(event.target.value)}
+            >
+              {currentUser.organizations.map((item) => (
+                <option key={item.organizationId} value={item.organizationId}>
+                  {item.organizationName}
+                </option>
+              ))}
+            </select>
+            {workspaceError && <small role="alert">{workspaceError}</small>}
+          </label>
+        ) : (
+          <div className="workspace-label">{organization?.organizationName ?? 'WORKSPACE'}</div>
+        )}
         <nav>
           <a className="nav-link active" href="#" aria-label="Overview" title="Overview">
             <span aria-hidden="true">⌂</span>
@@ -76,6 +112,22 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
           <div className="breadcrumb">
             Workspace <span>/</span> Overview
           </div>
+          {currentUser.organizations.length > 1 && (
+            <label className="topbar-workspace-switcher">
+              <span className="visually-hidden">Active workspace</span>
+              <select
+                aria-label="Active workspace"
+                value={organization?.organizationId ?? ''}
+                onChange={(event) => void switchWorkspace(event.target.value)}
+              >
+                {currentUser.organizations.map((item) => (
+                  <option key={item.organizationId} value={item.organizationId}>
+                    {item.organizationName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="top-actions">
             <ApiStatus />
             <ThemeToggle className="icon-button" />

@@ -39,10 +39,11 @@ describe('vector retrieval service', () => {
       minimumScore: 0.45,
     });
 
-    const result = await service.retrieve('How long are invoices retained?', 'org-1');
+    const principalAcl = ['user:user-1', 'role:member'];
+    const result = await service.retrieve('How long are invoices retained?', 'org-1', principalAcl);
 
     expect(embed).toHaveBeenCalledWith('How long are invoices retained?');
-    expect(search).toHaveBeenCalledWith([0.25, 0.75], 'org-1', 5);
+    expect(search).toHaveBeenCalledWith([0.25, 0.75], 'org-1', principalAcl, 5);
     expect(findDocuments).toHaveBeenCalledWith(['00000000-0000-4000-8000-000000000001'], 'org-1');
     expect(result.citations).toHaveLength(1);
     expect(result.citations[0]).toMatchObject({
@@ -71,7 +72,9 @@ describe('vector retrieval service', () => {
       minimumScore: 0.45,
     });
 
-    await expect(service.retrieve('A question', 'org-1')).resolves.toEqual({
+    await expect(
+      service.retrieve('A question', 'org-1', ['user:user-1', 'role:viewer']),
+    ).resolves.toEqual({
       citations: [],
       debug: [],
       context: '',
@@ -112,15 +115,24 @@ describe('vector retrieval service', () => {
       weights: { vector: 0.7, keyword: 0.3 },
     });
 
-    const result = await service.retrieve('invoice retention', 'org-1');
+    const principalAcl = ['user:user-1', 'group:team-1', 'role:member'];
+    const result = await service.retrieve('invoice retention', 'org-1', principalAcl);
 
-    expect(hybridSearch).toHaveBeenCalledWith('invoice retention', [0.1, 0.9], 'org-1', 5, {
-      vector: 0.7,
-      keyword: 0.3,
-    });
+    expect(hybridSearch).toHaveBeenCalledWith(
+      'invoice retention',
+      [0.1, 0.9],
+      'org-1',
+      principalAcl,
+      5,
+      {
+        vector: 0.7,
+        keyword: 0.3,
+      },
+    );
     expect(result.debug).toEqual([
       {
         chunkId: 'chunk-hybrid',
+        documentId: '00000000-0000-4000-8000-000000000003',
         documentName: 'Finance policy.pdf',
         chunkIndex: 4,
         fusedRank: 1,
@@ -171,7 +183,7 @@ describe('vector retrieval service', () => {
       },
     });
 
-    const result = await service.retrieve('sick leave', 'org-1');
+    const result = await service.retrieve('sick leave', 'org-1', ['user:user-1', 'role:member']);
 
     expect(result.citations).toHaveLength(1);
     expect(result.citations[0]?.documentName).toBe('Handbook.pdf');

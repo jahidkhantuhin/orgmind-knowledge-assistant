@@ -27,11 +27,17 @@ type RankedCandidate = SimilarChunk & {
 
 type RetrievalDependencies = {
   embed: (_query: string) => Promise<number[]>;
-  search: (_vector: number[], _organizationId: string, _limit: number) => Promise<SimilarChunk[]>;
+  search: (
+    _vector: number[],
+    _organizationId: string,
+    _aclTokens: string[],
+    _limit: number,
+  ) => Promise<SimilarChunk[]>;
   hybridSearch?: (
     _query: string,
     _vector: number[],
     _organizationId: string,
+    _aclTokens: string[],
     _limit: number,
     _weights: { vector: number; keyword: number },
   ) => Promise<SimilarChunk[]>;
@@ -58,10 +64,10 @@ const defaultDependencies: RetrievalDependencies = {
     if (!vector) throw new Error('Could not create a search embedding for this question.');
     return Array.from(vector);
   },
-  search: (vector, organizationId, limit) =>
-    chunksRepository.searchSimilar(vector, organizationId, limit),
-  hybridSearch: (query, vector, organizationId, limit, weights) =>
-    chunksRepository.searchHybrid(query, vector, organizationId, limit, weights),
+  search: (vector, organizationId, aclTokens, limit) =>
+    chunksRepository.searchSimilar(vector, organizationId, aclTokens, limit),
+  hybridSearch: (query, vector, organizationId, aclTokens, limit, weights) =>
+    chunksRepository.searchHybrid(query, vector, organizationId, aclTokens, limit, weights),
   findDocuments: (ids, organizationId) =>
     documentsRepository.findByIdsInOrganization(ids, organizationId),
   limit: env.CHAT_TOP_K,
@@ -76,7 +82,11 @@ const defaultDependencies: RetrievalDependencies = {
 
 function createRetrievalService(dependencies: RetrievalDependencies) {
   return {
-    async retrieve(query: string, organizationId: string): Promise<RetrievalResult> {
+    async retrieve(
+      query: string,
+      organizationId: string,
+      aclTokens: string[],
+    ): Promise<RetrievalResult> {
       const settings = await dependencies.getSettings?.(organizationId);
       let searchQuery = query;
       if (settings?.queryRewriteEnabled && dependencies.queryRewriter) {
@@ -101,10 +111,11 @@ function createRetrievalService(dependencies: RetrievalDependencies) {
               searchQuery,
               vector,
               organizationId,
+              aclTokens,
               candidateLimit,
               dependencies.weights ?? { vector: 1, keyword: 1 },
             )
-          : await dependencies.search(vector, organizationId, candidateLimit);
+          : await dependencies.search(vector, organizationId, aclTokens, candidateLimit);
       const eligible =
         dependencies.strategy === 'hybrid'
           ? results
@@ -173,6 +184,7 @@ function createRetrievalService(dependencies: RetrievalDependencies) {
         .map((result) => ({
           ...result.retrievalDebug!,
           chunkId: result._id,
+          documentId: result.documentId,
           documentName: documentNames.get(result.documentId) ?? 'Source document',
           chunkIndex: result.chunkIndex,
           fusedRank: eligible.findIndex((candidate) => candidate._id === result._id) + 1 || null,

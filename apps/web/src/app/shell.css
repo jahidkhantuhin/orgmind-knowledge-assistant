@@ -42,6 +42,33 @@
   font-weight: 700;
   margin: 52px 10px 12px;
 }
+.workspace-switcher {
+  display: grid;
+  gap: 7px;
+  margin: 42px 10px 14px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 1.1px;
+  font-weight: 700;
+}
+.workspace-switcher select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--foreground);
+  background: var(--surface);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.workspace-switcher small {
+  color: #c33;
+  letter-spacing: 0;
+}
+.topbar-workspace-switcher {
+  display: none;
+}
 .sidebar nav {
   display: grid;
   gap: 4px;
@@ -463,6 +490,7 @@
   }
   .brand > span:last-child,
   .workspace-label,
+  .workspace-switcher,
   .nav-link .nav-label,
   .sidebar-bottom > div:not(.avatar),
   .more {
@@ -509,6 +537,23 @@
   }
   .topbar {
     padding: 0 13px;
+  }
+  .topbar-workspace-switcher {
+    display: block;
+    min-width: 0;
+    flex: 1;
+    margin-left: 8px;
+  }
+  .topbar-workspace-switcher select {
+    width: 100%;
+    min-width: 0;
+    max-width: 150px;
+    padding: 7px 5px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--foreground);
+    background: var(--surface);
+    font-size: 11px;
   }
   .content {
     padding: 25px 14px;

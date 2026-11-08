@@ -40,6 +40,7 @@ export const membershipsRepository = {
           organizationId,
           userId,
           role,
+          groupIds: [],
           createdAt: now,
           updatedAt: now,
         },
@@ -61,11 +62,32 @@ export const membershipsRepository = {
     return rows.map(parseDocument);
   },
 
+  async findUserIdsInOrganization(organizationId: string, userIds: string[]): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    const rows = await memberships()
+      .find({ organizationId, userId: { $in: userIds } })
+      .project({ userId: 1 })
+      .toArray();
+    return rows.map((row) => String(row.userId));
+  },
+
   async findForUserInOrganization(
     userId: string,
     organizationId: string,
   ): Promise<MembershipDocument | null> {
     const row = await memberships().findOne({ userId, organizationId });
     return row ? parseDocument(row) : null;
+  },
+
+  async setGroupIdsForUserInOrganization(
+    userId: string,
+    organizationId: string,
+    groupIds: string[],
+  ): Promise<boolean> {
+    const result = await memberships().updateOne(
+      { userId, organizationId },
+      { $set: { groupIds, updatedAt: new Date() } },
+    );
+    return result.matchedCount === 1;
   },
 };

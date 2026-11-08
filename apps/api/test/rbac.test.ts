@@ -18,6 +18,7 @@ describe('organization role guard', () => {
       organizationId: 'org-1',
       userId: 'user-1',
       role: 'admin',
+      groupIds: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -40,6 +41,7 @@ describe('organization role guard', () => {
       organizationId: 'org-1',
       userId: 'user-2',
       role: 'viewer',
+      groupIds: [],
       createdAt: new Date(),
       updatedAt: new Date(),
     });

@@ -30,6 +30,7 @@ export const MembershipDocumentSchema = z.object({
   organizationId: z.string().min(1),
   userId: z.string().min(1),
   role: MembershipRoleSchema,
+  groupIds: z.array(z.string().min(1)).default([]),
   createdAt: z.date(),
   updatedAt: z.date(),
 });
@@ -76,6 +77,7 @@ export const OrganizationMemberSchema = z.object({
   name: z.string(),
   email: z.email(),
   role: MembershipRoleSchema,
+  groupIds: z.array(z.string().min(1)).default([]),
   joinedAt: z.string().datetime(),
 });
 export type OrganizationMember = z.infer<typeof OrganizationMemberSchema>;
@@ -84,6 +86,11 @@ export const OrganizationMembersResponseSchema = z.object({
   members: z.array(OrganizationMemberSchema),
 });
 export type OrganizationMembersResponse = z.infer<typeof OrganizationMembersResponseSchema>;
+
+export const AddOrganizationMemberSchema = z.object({
+  email: z.email().trim().toLowerCase(),
+  role: MembershipRoleSchema,
+});
 
 export const UserDocumentSchema = z.object({
   id: z.string().optional(),
@@ -116,6 +123,8 @@ export const DocumentRecordSchema = z.object({
   _id: z.string().uuid(),
   organizationId: z.string().min(1),
   ownerId: z.string().min(1),
+  collectionId: z.string().min(1).default('default'),
+  acl: z.array(z.string().min(1)).default([]),
   originalName: z.string().min(1).max(255),
   extension: DocumentExtensionSchema,
   mimeType: z.string().min(1).max(128),
@@ -142,6 +151,8 @@ export const DocumentSummarySchema = z.object({
   id: z.string().uuid(),
   organizationId: z.string(),
   ownerId: z.string(),
+  collectionId: z.string().min(1).default('default'),
+  acl: z.array(z.string().min(1)).default([]),
   originalName: z.string(),
   extension: DocumentExtensionSchema,
   mimeType: z.string(),
@@ -199,6 +210,7 @@ export type RetrievalDebug = z.infer<typeof RetrievalDebugSchema>;
 
 export const RetrievalDebugChunkSchema = RetrievalDebugSchema.extend({
   chunkId: z.string(),
+  documentId: z.string().uuid().optional(),
   documentName: z.string(),
   chunkIndex: z.number().int().nonnegative(),
 });
@@ -345,3 +357,29 @@ export const DocumentDetailResponseSchema = z.object({
   chunks: z.array(DocumentChunkPreviewSchema),
 });
 export type DocumentDetailResponse = z.infer<typeof DocumentDetailResponseSchema>;
+
+export const TeamGroupSchema = z.object({
+  id: z.string().uuid(),
+  organizationId: z.string().min(1),
+  name: z.string().trim().min(2).max(80),
+  createdAt: z.string().datetime(),
+});
+export type TeamGroup = z.infer<typeof TeamGroupSchema>;
+
+export const TeamGroupsResponseSchema = z.object({ groups: z.array(TeamGroupSchema) });
+export const CreateTeamGroupSchema = z.object({ name: z.string().trim().min(2).max(80) });
+export const UpdateMemberGroupsSchema = z.object({ groupIds: z.array(z.string().uuid()).max(50) });
+export const UpdateAccessGrantsSchema = z.object({
+  roles: z.array(MembershipRoleSchema).max(3),
+  userIds: z.array(z.string().min(1)).max(100),
+  groupIds: z.array(z.string().uuid()).max(50),
+});
+export const UpdateDocumentAccessSchema = UpdateAccessGrantsSchema.extend({
+  collectionId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(80)
+    .regex(/^[a-zA-Z0-9 _-]+$/),
+});
+export const DocumentCollectionAccessResponseSchema = z.object({ acl: z.array(z.string()) });

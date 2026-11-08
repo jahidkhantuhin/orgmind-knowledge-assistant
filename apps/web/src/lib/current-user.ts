@@ -27,5 +27,31 @@ export async function getCurrentUser(): Promise<AuthMeResponse | null> {
   }
   if (!response) throw lastError;
   if (!response.ok) return null;
-  return AuthMeResponseSchema.parse(await response.json());
+  const currentUser = AuthMeResponseSchema.parse(await response.json());
+  const activeOrganizationId = cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith('orgmind_active_organization='))
+    ?.slice('orgmind_active_organization='.length);
+  if (!activeOrganizationId) return currentUser;
+  let decodedOrganizationId = activeOrganizationId;
+  try {
+    decodedOrganizationId = decodeURIComponent(activeOrganizationId);
+  } catch {
+    /* Invalid cookie; use the default workspace. */
+  }
+  const selected = currentUser.organizations.find(
+    (item) => item.organizationId === decodedOrganizationId,
+  );
+  return selected
+    ? {
+        ...currentUser,
+        organizations: [
+          selected,
+          ...currentUser.organizations.filter(
+            (item) => item.organizationId !== selected.organizationId,
+          ),
+        ],
+      }
+    : currentUser;
 }
