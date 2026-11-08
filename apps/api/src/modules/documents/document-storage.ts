@@ -64,8 +64,8 @@ export const uploadDocumentFile = multer({
   limits: {
     fileSize: env.MAX_DOCUMENT_UPLOAD_BYTES,
     files: 1,
-    fields: 0,
-    parts: 1,
+    fields: 1,
+    parts: 2,
   },
 }).single('file');
 
