@@ -17,6 +17,8 @@ export function TeamGroupsPanel({
   const [members, setMembers] = useState(initialMembers);
   const [groups, setGroups] = useState(initialGroups);
   const [name, setName] = useState('');
+  const [editingGroupId, setEditingGroupId] = useState('');
+  const [editingName, setEditingName] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -73,6 +75,78 @@ export function TeamGroupsPanel({
     }
   }
 
+  async function renameGroup(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch(
+        `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/groups/${encodeURIComponent(editingGroupId)}`,
+        {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ name: editingName }),
+        },
+      );
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          typeof payload === 'object' && payload !== null && 'error' in payload
+            ? (payload.error as { message?: string }).message
+            : undefined;
+        throw new Error(message ?? 'Could not rename this team group.');
+      }
+      const updated = (payload as { group: TeamGroup }).group;
+      setGroups((current) =>
+        current
+          .map((group) => (group.id === updated.id ? updated : group))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      setEditingGroupId('');
+      setEditingName('');
+      setMessage('Team group renamed.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not rename this team group.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteGroup(group: TeamGroup) {
+    if (
+      !window.confirm(
+        `Delete “${group.name}”? Its members will lose access granted through this group.`,
+      )
+    )
+      return;
+    setError('');
+    try {
+      const response = await fetch(
+        `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/groups/${encodeURIComponent(group.id)}`,
+        { method: 'DELETE', credentials: 'include' },
+      );
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        const apiMessage =
+          typeof payload === 'object' && payload !== null && 'error' in payload
+            ? (payload.error as { message?: string }).message
+            : undefined;
+        throw new Error(apiMessage ?? 'Could not delete this team group.');
+      }
+      setGroups((current) => current.filter((item) => item.id !== group.id));
+      setMembers((current) =>
+        current.map((member) => ({
+          ...member,
+          groupIds: member.groupIds.filter((id) => id !== group.id),
+        })),
+      );
+      setMessage('Team group deleted and its member assignments removed.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not delete this team group.');
+    }
+  }
+
   return (
     <section className="members-card team-groups-card">
       <div className="members-card-head">
@@ -107,6 +181,55 @@ export function TeamGroupsPanel({
         <p className="knowledge-message success" role="status">
           {message}
         </p>
+      )}
+      {groups.length > 0 && (
+        <div className="team-group-admin-list">
+          <strong>Manage groups</strong>
+          {groups.map((group) =>
+            editingGroupId === group.id ? (
+              <form className="team-group-edit-form" key={group.id} onSubmit={renameGroup}>
+                <input
+                  aria-label={`Rename ${group.name}`}
+                  value={editingName}
+                  onChange={(event) => setEditingName(event.target.value)}
+                  minLength={2}
+                  maxLength={80}
+                  required
+                  autoFocus
+                />
+                <button className="secondary-button" type="submit" disabled={busy}>
+                  Save
+                </button>
+                <button className="text-button" type="button" onClick={() => setEditingGroupId('')}>
+                  Cancel
+                </button>
+              </form>
+            ) : (
+              <div className="team-group-admin-row" key={group.id}>
+                <span>{group.name}</span>
+                <div>
+                  <button
+                    className="text-button"
+                    type="button"
+                    onClick={() => {
+                      setEditingGroupId(group.id);
+                      setEditingName(group.name);
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="member-remove-button"
+                    type="button"
+                    onClick={() => void deleteGroup(group)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ),
+          )}
+        </div>
       )}
       {groups.length > 0 && members.length > 0 && (
         <div className="team-group-members">

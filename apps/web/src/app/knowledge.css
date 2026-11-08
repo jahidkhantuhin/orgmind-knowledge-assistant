@@ -804,6 +804,52 @@
   gap: 5px;
   font-size: 13px;
 }
+.team-group-admin-list {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12px;
+}
+.team-group-admin-row,
+.team-group-edit-form {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 7px 0;
+}
+.team-group-admin-row > div,
+.team-group-edit-form {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.team-group-edit-form input {
+  min-width: 0;
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--foreground);
+  background: var(--background);
+}
+.member-remove-button {
+  padding: 6px 9px;
+  border: 1px solid color-mix(in srgb, #bd3949 35%, var(--line));
+  border-radius: 7px;
+  color: #bd3949;
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+}
+.member-remove-button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
 .dark .share-dialog {
   border-color: #303746;
   color: #e3e8f1;
@@ -842,7 +888,30 @@
 .dark .workspace-invitation-error {
   color: #ffb5ba;
 }
+.dark .team-group-edit-form input {
+  border-color: #394252;
+  color: #e3e8f1;
+  background: #121720;
+}
+.dark .member-remove-button {
+  color: #ff9ca5;
+  border-color: #70404a;
+}
 @media (max-width: 640px) {
+  .team-group-admin-row,
+  .team-group-edit-form {
+    align-items: stretch;
+  }
+  .team-group-edit-form {
+    flex-wrap: wrap;
+  }
+  .team-group-edit-form input {
+    flex-basis: 100%;
+  }
+  .team-group-member {
+    align-items: flex-start;
+    flex-direction: column;
+  }
   .workspace-invite-link > div {
     align-items: stretch;
     flex-direction: column;

@@ -2,13 +2,16 @@ import { Router } from 'express';
 import { requireOrganizationRole, requireAuth } from '../../auth/auth.middleware.js';
 import {
   createTeamGroupController,
+  deleteTeamGroupController,
   createWorkspaceInvitationController,
   listWorkspaceInvitationsController,
   addOrganizationMemberController,
   listMembersController,
+  removeOrganizationMemberController,
   revokeWorkspaceInvitationController,
   listTeamGroupsController,
   updateMemberGroupsController,
+  updateTeamGroupController,
 } from './organizations.controller.js';
 import {
   createConversationController,
@@ -49,6 +52,12 @@ organizationsRouter.post(
   requireOrganizationRole(['admin']),
   addOrganizationMemberController,
 );
+organizationsRouter.delete(
+  '/:organizationId/members/:userId',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  removeOrganizationMemberController,
+);
 organizationsRouter.get(
   '/:organizationId/groups',
   requireAuth,
@@ -60,6 +69,18 @@ organizationsRouter.post(
   requireAuth,
   requireOrganizationRole(['admin']),
   createTeamGroupController,
+);
+organizationsRouter.patch(
+  '/:organizationId/groups/:groupId',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  updateTeamGroupController,
+);
+organizationsRouter.delete(
+  '/:organizationId/groups/:groupId',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  deleteTeamGroupController,
 );
 organizationsRouter.patch(
   '/:organizationId/members/:userId/groups',

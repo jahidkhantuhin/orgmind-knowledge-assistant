@@ -425,6 +425,7 @@ export type TeamGroup = z.infer<typeof TeamGroupSchema>;
 
 export const TeamGroupsResponseSchema = z.object({ groups: z.array(TeamGroupSchema) });
 export const CreateTeamGroupSchema = z.object({ name: z.string().trim().min(2).max(80) });
+export const UpdateTeamGroupSchema = CreateTeamGroupSchema;
 export const UpdateMemberGroupsSchema = z.object({ groupIds: z.array(z.string().uuid()).max(50) });
 export const UpdateAccessGrantsSchema = z.object({
   roles: z.array(MembershipRoleSchema).max(3),

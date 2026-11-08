@@ -5,7 +5,7 @@ import {
   type MembershipDocument,
   type MembershipRole,
 } from '@orgmind/shared';
-import { getDatabase } from '../../lib/connections.js';
+import { getDatabase, mongoClient } from '../../lib/connections.js';
 
 function memberships(): Collection<Document> {
   return getDatabase().collection('memberships');
@@ -94,5 +94,37 @@ export const membershipsRepository = {
       { $set: { groupIds, updatedAt: new Date() } },
     );
     return result.matchedCount === 1;
+  },
+
+  async removeFromOrganization(
+    organizationId: string,
+    userId: string,
+  ): Promise<'removed' | 'last_admin' | 'not_found'> {
+    const session = mongoClient.startSession();
+    let result: 'removed' | 'last_admin' | 'not_found' = 'not_found';
+    try {
+      await session.withTransaction(async () => {
+        const target = await memberships().findOne({ organizationId, userId }, { session });
+        if (!target) {
+          result = 'not_found';
+          return;
+        }
+        if (target.role === 'admin') {
+          const adminCount = await memberships().countDocuments(
+            { organizationId, role: 'admin' },
+            { session },
+          );
+          if (adminCount <= 1) {
+            result = 'last_admin';
+            return;
+          }
+        }
+        await memberships().deleteOne({ organizationId, userId }, { session });
+        result = 'removed';
+      });
+      return result;
+    } finally {
+      await session.endSession();
+    }
   },
 };

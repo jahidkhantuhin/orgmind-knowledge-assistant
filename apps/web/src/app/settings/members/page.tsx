@@ -12,6 +12,7 @@ import { getCurrentUser } from '../../../lib/current-user';
 import { TeamGroupsPanel } from '../../../components/team-groups-panel';
 import { AddWorkspaceMemberForm } from '../../../components/add-workspace-member-form';
 import { WorkspaceInvitationsPanel } from '../../../components/workspace-invitations-panel';
+import { OrganizationMembersTable } from '../../../components/organization-members-table';
 
 const apiUrl =
   process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -59,49 +60,10 @@ export default async function MembersPage() {
       </p>
       <AddWorkspaceMemberForm organizationId={organization.organizationId} />
       <WorkspaceInvitationsPanel organizationId={organization.organizationId} />
-      <section className="members-card">
-        <div className="members-card-head">
-          <strong>Workspace members</strong>
-          <span>
-            {members.length} {members.length === 1 ? 'person' : 'people'}
-          </span>
-        </div>
-        {members.length === 0 ? (
-          <p className="members-empty">No members found.</p>
-        ) : (
-          <div className="members-table-wrap">
-            <table className="members-table">
-              <thead>
-                <tr>
-                  <th>Person</th>
-                  <th>Role</th>
-                  <th>Joined</th>
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((member) => (
-                  <tr key={member.userId}>
-                    <td>
-                      <strong>{member.name}</strong>
-                      <small>{member.email}</small>
-                    </td>
-                    <td>
-                      <span className={`role-pill role-${member.role}`}>{member.role}</span>
-                    </td>
-                    <td>
-                      {new Date(member.joinedAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      <OrganizationMembersTable
+        organizationId={organization.organizationId}
+        initialMembers={members}
+      />
       <TeamGroupsPanel
         key={members.length}
         organizationId={organization.organizationId}

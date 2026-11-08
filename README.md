@@ -59,7 +59,7 @@ Set `COHERE_API_KEY` in `.env`, run migrations, and enable **Rerank search resul
 
 ## Step 8: Permission-aware retrieval
 
-Documents can be shared by workspace role, individual account, or team group. Workspace admins always retain access. In **Settings → Members**, an admin can add an existing OrgMind account, create a role-assigned invitation for a new account, create groups, and assign workspace members to groups. Invitation links are bound to the invited email, expire after seven days, and can be used once. Existing accounts should be added through **Add existing account**. When a person belongs to multiple workspaces, use the workspace selector in the sidebar to switch between them.
+Documents can be shared by workspace role, individual account, or team group. Workspace admins always retain access. In **Settings → Members**, an admin can add or remove workspace members, create a role-assigned invitation for a new account, create/edit/delete groups, and assign workspace members to groups. Removing the final admin is blocked; deleting a group removes its memberships so access granted only through that group is revoked. Invitation links are bound to the invited email, expire after seven days, and can be used once. Existing accounts should be added through **Add existing account**. When a person belongs to multiple workspaces, use the workspace selector in the sidebar to switch between them.
 
 Registration offers two paths: create a new workspace with a case-insensitively unique company name, or join using an administrator invitation link/code. Joining does not create an extra personal workspace. Workspace names are normalized and protected by a unique MongoDB index; older duplicate names are retained while new duplicates are rejected.
 
