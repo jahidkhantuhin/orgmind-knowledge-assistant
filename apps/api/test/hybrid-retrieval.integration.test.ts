@@ -51,7 +51,10 @@ describe('MongoDB hybrid retrieval integration', () => {
         return;
       }
 
-      const collection = client.db(databaseName).collection<FixtureChunk>('chunks');
+      const database = client.db(databaseName);
+      // MongoDB Search index creation requires the namespace to exist first.
+      await database.createCollection('chunks');
+      const collection = database.collection<FixtureChunk>('chunks');
       await Promise.all([
         collection.createSearchIndex({
           name: CHUNKS_VECTOR_INDEX_NAME,
