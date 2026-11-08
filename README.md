@@ -8,7 +8,7 @@ This first foundation includes a pnpm TypeScript workspace, an Express 5 API wit
 
 ## Step 2: Database, authentication, and RBAC
 
-Added Better Auth email/password sessions backed by MongoDB, validated organizations and memberships, versioned index bootstrap, and an idempotent admin seed. The first registration creates an organization and an admin membership. Admin-only member listing is protected by API role checks and the Next.js server page.
+Added Better Auth email/password sessions backed by MongoDB, validated organizations and memberships, versioned index bootstrap, and an idempotent admin seed. Registration can create a new workspace, where the registrant becomes admin, or join a workspace through an email-bound invitation with its assigned role. Admin-only membership management is protected by API role checks.
 
 ## Step 3: Document upload and ingestion
 
@@ -59,7 +59,7 @@ Set `COHERE_API_KEY` in `.env`, run migrations, and enable **Rerank search resul
 
 ## Step 8: Permission-aware retrieval
 
-Documents can be shared by workspace role, individual account, or team group. Workspace admins always retain access. In **Settings → Members**, an admin can add or remove workspace members, create a role-assigned invitation for a new account, create/edit/delete groups, and assign workspace members to groups. Removing the final admin is blocked; deleting a group removes its memberships so access granted only through that group is revoked. Invitation links are bound to the invited email, expire after seven days, and can be used once. Existing accounts should be added through **Add existing account**. When a person belongs to multiple workspaces, use the workspace selector in the sidebar to switch between them.
+Documents can be shared by workspace role, individual account, or team group. Workspace admins always retain access. In **Settings → Members**, an admin can add or remove workspace members, create a role-assigned invitation for a new account, create/rename/delete groups, and assign workspace members to groups. Removing the final admin is blocked; deleting a group removes its memberships so access granted only through that group is revoked. Invitation links are bound to the invited email, expire after seven days, and can be used once. Existing accounts should be added through **Add existing account**. When a person belongs to multiple workspaces, use the workspace selector in the sidebar to switch between them.
 
 Registration offers two paths: create a new workspace with a case-insensitively unique company name, or join using an administrator invitation link/code. Joining does not create an extra personal workspace. Workspace names are normalized and protected by a unique MongoDB index; older duplicate names are retained while new duplicates are rejected.
 
@@ -76,6 +76,8 @@ pnpm dev
 ```
 
 To verify invitations, open **Settings → Members**, create an invitation for an email and role, then open the generated link in a private window and register with that exact email. The account joins the invited workspace with the selected role. Try the link a second time or with another email; it should be rejected. To verify workspace name uniqueness, attempt to register a new workspace using a name already in use; registration should ask for a different name or an invitation. The MongoDB hybrid retrieval integration test creates temporary indexes and skips when the configured MongoDB service is unavailable.
+
+To verify member and group administration, add at least two workspace admins, then remove a non-admin from **Workspace members** and confirm they can no longer switch to or access that workspace. Try removing the last admin; the app should block it. Under **Manage groups**, rename a group and verify its folder sharing remains attached to the same group, then delete a test group and confirm its members lose access that was granted only through that group.
 
 For document access, create a team group and assign the invited account to it. Upload a test document into a folder such as `people-ops`, select **Share**, choose **Entire folder**, select the group, and click **Save access**. Sign in as that member and ask a question answered by the document. Remove the account from the group and retry; the document should no longer appear in its Knowledge base list or in retrieved citations.
 
