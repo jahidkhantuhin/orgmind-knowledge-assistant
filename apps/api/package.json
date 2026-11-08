@@ -5,7 +5,7 @@
   "author": "Jahid Khan Tuhin",
   "type": "module",
   "scripts": {
-    "dev": "node --watch --env-file=../../.env --import tsx src/server.ts",
+    "dev": "node --env-file=../../.env --import tsx ./node_modules/tsx/dist/cli.mjs watch --clear-screen=false --include ../../packages/shared/src src/server.ts",
     "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "db:migrate": "node --env-file=../../.env --import tsx scripts/migrate.ts",
