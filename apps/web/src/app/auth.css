@@ -1,8 +1,10 @@
 .auth-page {
   min-height: 100vh;
+  min-height: 100svh;
   display: grid;
-  place-items: center;
-  padding: 30px 16px;
+  align-content: start;
+  justify-items: center;
+  padding: clamp(64px, 8vh, 92px) 16px 32px;
   background: radial-gradient(
     ellipse at 50% 0%,
     color-mix(in srgb, var(--accent) 10%, var(--background)),
@@ -16,7 +18,7 @@
   z-index: 2;
 }
 .auth-card {
-  width: min(100%, 440px);
+  width: min(100%, 460px);
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -47,9 +49,10 @@
 }
 .registration-paths {
   display: grid;
-  gap: 10px;
+  gap: 6px;
   margin: 0;
-  padding: 13px;
+  min-width: 0;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 9px;
 }
@@ -59,16 +62,32 @@
   font-size: 11px;
   font-weight: 600;
 }
-.registration-paths label {
+.registration-paths .registration-choice {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 12px;
   font-weight: 500;
 }
-.registration-paths input {
-  width: 15px;
-  height: 15px;
+.registration-paths .registration-choice.selected {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+.registration-paths input[type='radio'] {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
   margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
   accent-color: var(--accent);
 }
 .invite-preview {
@@ -80,13 +99,13 @@
   font-size: 11px;
   line-height: 1.5;
 }
-.auth-form label {
+.auth-form > label {
   display: grid;
   gap: 7px;
   font-size: 11px;
   font-weight: 600;
 }
-.auth-form input {
+.auth-form > label input {
   width: 100%;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -97,11 +116,11 @@
   background: var(--background);
   outline: none;
 }
-.auth-form input:focus {
+.auth-form > label input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
-.auth-form label small {
+.auth-form > label small {
   color: var(--muted);
   font-size: 10px;
   font-weight: 400;
@@ -302,8 +321,28 @@
   display: none;
 }
 @media (max-width: 520px) {
+  .auth-page {
+    padding: 68px 14px 24px;
+  }
   .auth-card {
-    padding: 27px 21px;
+    padding: 26px 20px;
+  }
+  .auth-card .brand {
+    margin-bottom: 28px;
+  }
+  .auth-card h1 {
+    font-size: 23px;
+  }
+  .auth-form {
+    gap: 13px;
+  }
+  .auth-form > label input {
+    min-width: 0;
+    font-size: 16px;
+  }
+  .auth-theme-toggle {
+    top: 14px;
+    right: 14px;
   }
   .members-page {
     width: min(100% - 26px, 900px);

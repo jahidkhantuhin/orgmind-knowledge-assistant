@@ -115,7 +115,9 @@ export function AuthForm({ mode, inviteCode = '' }: AuthFormProps) {
         <>
           <fieldset className="registration-paths">
             <legend>How would you like to start?</legend>
-            <label>
+            <label
+              className={`registration-choice${workspaceMode === 'create' ? ' selected' : ''}`}
+            >
               <input
                 type="radio"
                 name="workspaceMode"
@@ -129,7 +131,7 @@ export function AuthForm({ mode, inviteCode = '' }: AuthFormProps) {
               />
               Create a new workspace
             </label>
-            <label>
+            <label className={`registration-choice${workspaceMode === 'join' ? ' selected' : ''}`}>
               <input
                 type="radio"
                 name="workspaceMode"
