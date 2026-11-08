@@ -132,4 +132,49 @@ describe('vector retrieval service', () => {
       },
     ]);
   });
+
+  it('keeps the fused search results when the optional reranker request fails', async () => {
+    const service = createConfiguredRetrievalService({
+      embed: async () => [1, 0],
+      search: async () => [],
+      hybridSearch: async () => [
+        {
+          _id: 'chunk-fallback',
+          documentId: '00000000-0000-4000-8000-000000000004',
+          chunkIndex: 1,
+          text: 'The handbook allows ten paid sick days.',
+          headingPath: ['Leave'],
+          score: 0.02,
+          retrievalDebug: {
+            vectorRank: 1,
+            vectorScore: 0.82,
+            keywordRank: 1,
+            keywordScore: 0.24,
+            fusedScore: 0.02,
+          },
+        },
+      ],
+      findDocuments: async () => [
+        {
+          _id: '00000000-0000-4000-8000-000000000004',
+          originalName: 'Handbook.pdf',
+        },
+      ],
+      limit: 1,
+      candidateCount: 5,
+      minimumScore: 0.45,
+      strategy: 'hybrid',
+      getSettings: async () => ({ rerankingEnabled: true, queryRewriteEnabled: false }),
+      reranker: {
+        available: true,
+        rerank: vi.fn().mockRejectedValue(new TypeError('fetch failed')),
+      },
+    });
+
+    const result = await service.retrieve('sick leave', 'org-1');
+
+    expect(result.citations).toHaveLength(1);
+    expect(result.citations[0]?.documentName).toBe('Handbook.pdf');
+    expect(result.debug[0]?.rerankRank).toBeUndefined();
+  });
 });

@@ -266,21 +266,28 @@ export const streamChatController: RequestHandler = async (req, res) => {
       return 'Unable to complete the answer. Please try again.';
     },
     onFinish: async ({ responseMessage }) => {
-      const content = responseMessage.parts
-        .filter((part) => part.type === 'text')
-        .map((part) => (part.type === 'text' ? part.text : ''))
-        .join('');
-      if (!content) return;
-      const usedCitations = citationsReferencedInAnswer(content, citations);
-      await chatRepository.addMessage({
-        organizationId,
-        conversationId: conversation._id,
-        userId,
-        role: 'assistant',
-        content,
-        citations: usedCitations,
-        retrievalDebug: retrieval.debug,
-      });
+      try {
+        const content = responseMessage.parts
+          .filter((part) => part.type === 'text')
+          .map((part) => (part.type === 'text' ? part.text : ''))
+          .join('');
+        if (!content) return;
+        const usedCitations = citationsReferencedInAnswer(content, citations);
+        await chatRepository.addMessage({
+          organizationId,
+          conversationId: conversation._id,
+          userId,
+          role: 'assistant',
+          content,
+          citations: usedCitations,
+          retrievalDebug: retrieval.debug,
+        });
+      } catch (error) {
+        logger.error(
+          { err: error, conversationId: conversation._id },
+          'Could not persist the streamed assistant answer.',
+        );
+      }
     },
   });
   if (conversation.title === 'New conversation') {
