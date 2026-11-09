@@ -246,6 +246,9 @@ importers:
       '@google/genai':
         specifier: 2.31.0
         version: 2.31.0(supports-color@7.2.0)
+      '@orgmind/evals':
+        specifier: workspace:*
+        version: link:../../packages/evals
       '@orgmind/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -362,6 +365,25 @@ importers:
       tailwindcss:
         specifier: 4.3.4
         version: 4.3.4
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: 5.1.0
+        version: 5.1.0(@types/node@24.10.0)(vite@8.3.5(@types/node@24.10.0)(jiti@2.7.0)(tsx@4.20.6)(yaml@2.9.1))
+
+  packages/evals:
+    dependencies:
+      '@orgmind/shared':
+        specifier: workspace:*
+        version: link:../shared
+    devDependencies:
+      '@types/node':
+        specifier: 24.10.0
+        version: 24.10.0
+      tsx:
+        specifier: 4.20.6
+        version: 4.20.6
       typescript:
         specifier: 5.9.3
         version: 5.9.3

@@ -16,6 +16,9 @@
     "db:migrate": "pnpm --filter @orgmind/api db:migrate",
     "db:search-indexes": "pnpm --filter @orgmind/api db:search-indexes",
     "db:seed": "pnpm --filter @orgmind/api db:seed",
+    "eval:seed": "pnpm --filter @orgmind/api eval:seed",
+    "eval": "pnpm --filter @orgmind/api eval",
+    "eval:smoke": "pnpm --filter @orgmind/evals smoke",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"

@@ -1,0 +1,26 @@
+{
+  "name": "@orgmind/evals",
+  "version": "0.1.0",
+  "private": true,
+  "author": "Jahid Khan Tuhin",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "smoke": "node --import tsx src/smoke.ts"
+  },
+  "dependencies": {
+    "@orgmind/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3",
+    "vitest": "5.1.0"
+  }
+}

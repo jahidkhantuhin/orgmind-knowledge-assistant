@@ -104,15 +104,26 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
             <span className="nav-label">Knowledge base</span>
           </Link>
           {organization?.role === 'admin' && (
-            <Link
-              className="nav-link muted"
-              href="/settings/members"
-              aria-label="Members"
-              title="Members"
-            >
-              <span aria-hidden="true">♙</span>
-              <span className="nav-label">Members</span>
-            </Link>
+            <>
+              <Link
+                className="nav-link muted"
+                href="/settings/members"
+                aria-label="Members"
+                title="Members"
+              >
+                <span aria-hidden="true">♙</span>
+                <span className="nav-label">Members</span>
+              </Link>
+              <Link
+                className="nav-link muted"
+                href="/settings/evals"
+                aria-label="Evals"
+                title="Evals"
+              >
+                <span aria-hidden="true">▥</span>
+                <span className="nav-label">Evals</span>
+              </Link>
+            </>
           )}
         </nav>
         <div className="sidebar-bottom">

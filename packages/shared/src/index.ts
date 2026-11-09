@@ -407,6 +407,57 @@ export const DocumentChunkPreviewSchema = DocumentChunkSchema.omit({
 });
 export type DocumentChunkPreview = z.infer<typeof DocumentChunkPreviewSchema>;
 
+export const EvalStrategySchema = z.enum(['vector', 'hybrid', 'hybrid-rerank']);
+export type EvalStrategy = z.infer<typeof EvalStrategySchema>;
+
+export const EvalMetricsSchema = z.object({
+  recallAtK: z.number().min(0).max(1),
+  mrr: z.number().min(0).max(1),
+  groundedness: z.number().min(0).max(1),
+  answerRelevance: z.number().min(0).max(1),
+});
+export type EvalMetrics = z.infer<typeof EvalMetricsSchema>;
+
+export const EvalCaseResultSchema = z.object({
+  caseId: z.string().min(1),
+  question: z.string().min(1),
+  expectedAnswer: z.string().min(1),
+  answer: z.string(),
+  expectedSourceIds: z.array(z.string()),
+  retrievedSourceIds: z.array(z.string()),
+  metrics: EvalMetricsSchema,
+});
+export type EvalCaseResult = z.infer<typeof EvalCaseResultSchema>;
+
+export const EvalVariantResultSchema = z.object({
+  strategy: EvalStrategySchema,
+  metrics: EvalMetricsSchema,
+  cases: z.array(EvalCaseResultSchema),
+});
+export type EvalVariantResult = z.infer<typeof EvalVariantResultSchema>;
+
+export const EvalRunDocumentSchema = z.object({
+  _id: z.string().uuid(),
+  organizationId: z.string().min(1),
+  createdAt: z.date(),
+  modelId: z.string().min(1),
+  topK: z.number().int().positive(),
+  minimumRecallAtK: z.number().min(0).max(1),
+  maximumRerankRecallDrop: z.number().min(0).max(1),
+  passed: z.boolean(),
+  variants: z.array(EvalVariantResultSchema).length(3),
+});
+export type EvalRunDocument = z.infer<typeof EvalRunDocumentSchema>;
+
+export const EvalRunSummarySchema = EvalRunDocumentSchema.extend({
+  id: z.string().uuid(),
+  createdAt: z.string().datetime(),
+}).omit({ _id: true });
+export type EvalRunSummary = z.infer<typeof EvalRunSummarySchema>;
+
+export const EvalRunsResponseSchema = z.object({ runs: z.array(EvalRunSummarySchema) });
+export type EvalRunsResponse = z.infer<typeof EvalRunsResponseSchema>;
+
 export const DocumentChunksPageResponseSchema = z.object({
   chunks: z.array(DocumentChunkPreviewSchema),
   nextCursor: z.number().int().nonnegative().nullable(),

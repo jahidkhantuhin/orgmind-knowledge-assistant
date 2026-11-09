@@ -209,6 +209,17 @@ export function createVectorRetrievalService(dependencies = defaultDependencies)
   return createRetrievalService({ ...dependencies, strategy: 'vector' });
 }
 
+export function createEvaluationRetrievalService(variant: 'vector' | 'hybrid' | 'hybrid-rerank') {
+  return createRetrievalService({
+    ...defaultDependencies,
+    strategy: variant === 'vector' ? 'vector' : 'hybrid',
+    getSettings: async () => ({
+      rerankingEnabled: variant === 'hybrid-rerank',
+      queryRewriteEnabled: false,
+    }),
+  });
+}
+
 export function createConfiguredRetrievalService(dependencies = defaultDependencies) {
   return createRetrievalService(dependencies);
 }

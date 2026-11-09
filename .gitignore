@@ -7,6 +7,7 @@ node_modules/
 apps/web/AGENTS.md
 dist/
 coverage/
+packages/evals/reports/
 .data/
 .turbo/
 .env

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, rm } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { extname, resolve } from 'node:path';
 import multer from 'multer';
 import { DocumentExtensionSchema, type DocumentExtension } from '@orgmind/shared';
@@ -81,6 +81,11 @@ function resolveStorageKey(storageKey: string): string {
 }
 
 export const localDocumentStorage = {
+  async write(storageKey: string, contents: Buffer): Promise<void> {
+    await mkdir(storageDirectory, { recursive: true });
+    await writeFile(resolveStorageKey(storageKey), contents, { flag: 'wx' });
+  },
+
   async read(storageKey: string): Promise<Buffer> {
     return readFile(resolveStorageKey(storageKey));
   },

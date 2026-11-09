@@ -5,6 +5,7 @@
 @import './knowledge.css';
 @import './chat.css';
 @import './feedback.css';
+@import './settings/evals/evals.css';
 
 :root {
   color-scheme: light;

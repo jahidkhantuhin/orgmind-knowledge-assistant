@@ -85,6 +85,44 @@ To verify member and group administration, add at least two workspace admins, ch
 
 For document access, create a team group and assign the invited account to it. Upload a test document into a folder such as `people-ops`, select **Share**, choose **Entire folder** (the dialog defaults to **This document only**), select the group, and click **Save access**. Sign in as that member and ask a question answered by the document. Remove the account from the group and retry; the document should no longer appear in its Knowledge base list or in retrieved citations.
 
+## Step 9: Evaluation harness
+
+The evaluation harness compares three retrieval strategies against a small golden dataset: vector-only, hybrid, and hybrid with Cohere reranking. It measures source-document recall@K and MRR, then uses the configured Gemini chat model as an LLM judge for faithfulness/groundedness and answer relevance. **Starting an evaluation is developer-operated through `pnpm eval:seed` and `pnpm eval`; admins cannot launch runs from the UI.** The admin-only **Evals** page displays recent runs already saved for the current workspace. Each run is stored in MongoDB's `evalRuns` collection.
+
+Evaluation fixtures create two visible Markdown documents in the selected workspace. Use a dedicated workspace so these test policies do not mix with ordinary company documents. Find the workspace `_id` in MongoDB Compass under `organizations` and set it as `EVAL_ORGANIZATION_ID` in `.env`. To evaluate a different workspace, a developer changes this value and runs the CLI again; the configured seed-admin account must be an admin in that workspace. This is a developer-operated workflow, not a per-workspace self-service evaluation feature. Ensure `GOOGLE_API_KEY` and `COHERE_API_KEY` are configured; evaluation makes model and reranker requests and can consume their quotas.
+
+The evaluator paces Gemini answer-generation and judge requests by at least `EVAL_GEMINI_REQUEST_INTERVAL_MS` milliseconds (default `7000`, about 8.6 request starts per minute) to reduce HTTP 429 rate-limit failures on the Gemini free tier. The golden set currently needs up to 18 Gemini requests per run, so runs take longer with this pacing. Other Gemini requests from the same project share its quota; avoid running another evaluation or sending substantial chat traffic at the same time. If you still hit quota limits, wait for the quota window to recover or increase the interval.
+
+```powershell
+pnpm db:migrate
+pnpm db:search-indexes
+pnpm eval:seed
+pnpm eval
+```
+
+`pnpm eval:seed` uses the seed admin account to add/update the deterministic fixture documents. `pnpm eval` requires those documents and ready MongoDB Search/Vector Search indexes, evaluates the golden questions, saves JSON and Markdown reports under `packages/evals/reports/`, and stores the run for the dashboard. It exits nonzero if hybrid recall falls below `EVAL_MIN_RECALL_AT_K` (default `0.6`) or reranking drops recall by more than `EVAL_MAX_RERANK_RECALL_DROP` (default `0.1`).
+
+| Strategy        | Retrieval method                               | Recall@K    | MRR         | Groundedness | Answer relevance |
+| --------------- | ---------------------------------------------- | ----------- | ----------- | ------------ | ---------------- |
+| Naive vector    | MongoDB `$vectorSearch`                        | Run locally | Run locally | LLM judge    | LLM judge        |
+| Hybrid          | `$vectorSearch` + `$search` with `$rankFusion` | Run locally | Run locally | LLM judge    | LLM judge        |
+| Hybrid + rerank | Hybrid retrieval + Cohere Rerank API v2        | Run locally | Run locally | LLM judge    | LLM judge        |
+
+### Reading the evaluation results
+
+Each metric is averaged over the three golden questions and displayed as a percentage. The rows describe different parts of quality:
+
+| Dashboard row               | What it measures                                                                                   | What 100% means                                            |
+| --------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Retrieval recall@K          | Whether expected source documents appear in the top K retrieved results.                           | Every expected source was retrieved for every question.    |
+| Mean reciprocal rank (MRR)  | How high the first expected source appears in the ranked results.                                  | The first expected source ranked first for every question. |
+| Faithfulness / groundedness | Gemini judge score for whether answer claims are supported by retrieved text.                      | Average judge score was 5/5.                               |
+| Answer relevance            | Gemini judge score for whether the answer addresses the question and matches the reference answer. | Average judge score was 5/5.                               |
+
+The **Passed** badge checks only the configured recall thresholds: hybrid and hybrid + rerank must meet `EVAL_MIN_RECALL_AT_K`, and reranking must not reduce recall beyond `EVAL_MAX_RERANK_RECALL_DROP`. It does not require perfect judge scores. A 100% run is possible for this small, targeted three-question fixture set; treat it as a check of these examples, not a guarantee for real-world questions or documents.
+
+No metric values are committed as a benchmark because they depend on the workspace's MongoDB indexes, configured model, and provider responses. The lightweight CI eval uses fixed in-memory fixtures and a recall regression threshold; it makes no Gemini or Cohere requests. Run `pnpm eval:smoke` locally to execute the same CI check.
+
 ## Quick start
 
 Requirements: Node.js 22.13+, pnpm 11.28+, and Docker Compose.

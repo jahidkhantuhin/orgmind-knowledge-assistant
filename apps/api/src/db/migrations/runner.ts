@@ -15,6 +15,7 @@ import {
   organizationsRepository,
 } from '../../modules/organizations/organizations.repository.js';
 import { workspaceInvitationsRepository } from '../../modules/organizations/workspace-invitations.repository.js';
+import { evalRunsRepository } from '../../modules/evals/eval-runs.repository.js';
 
 export async function runMigrations(): Promise<void> {
   const database = getDatabase();
@@ -102,6 +103,7 @@ export async function runMigrations(): Promise<void> {
   await applyMigration(migrations, '010-workspace-invitations', () =>
     workspaceInvitationsRepository.ensureIndexes(),
   );
+  await applyMigration(migrations, '011-evaluation-runs', () => evalRunsRepository.ensureIndexes());
 }
 
 async function applyMigration(

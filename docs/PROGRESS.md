@@ -78,3 +78,13 @@
 - New workspace names are normalized and unique. Migration `009-unique-workspace-names` backfills existing organizations and preserves older duplicate names with legacy-specific keys; migration `010-workspace-invitations` creates invitation indexes.
 - Added ACL pipeline tests for both hybrid legs, principal role/user/group tests, and an optional MongoDB integration test for user, group, and cross-organization filtering. The integration test skips when MongoDB is unavailable.
 - No new environment variables. Run `pnpm db:migrate` before testing so the ACL backfill and team-group index are applied.
+
+## Step 9: Evaluation harness
+
+- Added `packages/evals` with a deterministic golden dataset, fictional handbook and IT policy fixtures, retrieval recall@K and MRR, LLM-judge groundedness and answer relevance, regression gates, and Markdown report formatting.
+- Added `pnpm eval:seed` to add or refresh the evaluation documents in a selected dedicated workspace using the existing chunking and Gemini embedding pipeline.
+- Added `pnpm eval` to compare vector-only, hybrid, and hybrid-plus-Cohere-reranking retrieval; it generates answers and judge scores with the configured Gemini chat model, writes JSON/Markdown reports under `packages/evals/reports/`, and stores each result in MongoDB `evalRuns`.
+- Added migration `011-evaluation-runs` and an admin-only API endpoint plus **Evals** dashboard for viewing recent per-run metric comparisons. Starting runs is developer-operated through the CLI; the dashboard does not launch evaluations.
+- Added configurable pacing between Gemini answer and judge requests (`EVAL_GEMINI_REQUEST_INTERVAL_MS`, default 7000 ms) to reduce free-tier 429 failures; the current golden run can make up to 18 Gemini requests, so it runs more slowly and still shares quota with other project traffic.
+- Added a deterministic `pnpm eval:smoke` CI job with a recall regression threshold. It does not call Google or Cohere services.
+- Added `EVAL_ORGANIZATION_ID`, `EVAL_MIN_RECALL_AT_K`, `EVAL_MAX_RERANK_RECALL_DROP`, and `EVAL_GEMINI_REQUEST_INTERVAL_MS` to `.env.example`; README documents setup, provider quota impact, reports, comparison strategies, metric meanings, and what the pass badge checks.

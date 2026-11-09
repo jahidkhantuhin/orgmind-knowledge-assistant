@@ -38,6 +38,7 @@ import {
   getRetrievalSettingsController,
   updateRetrievalSettingsController,
 } from './retrieval-settings.controller.js';
+import { listEvalRunsController } from '../evals/eval-runs.controller.js';
 
 export const organizationsRouter = Router();
 
@@ -172,6 +173,12 @@ organizationsRouter.get(
   requireAuth,
   requireOrganizationRole(['admin']),
   getRetrievalSettingsController,
+);
+organizationsRouter.get(
+  '/:organizationId/evals',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  listEvalRunsController,
 );
 organizationsRouter.patch(
   '/:organizationId/chat/retrieval-settings',
