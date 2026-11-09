@@ -662,9 +662,12 @@
 }
 .team-groups-card {
   margin-top: 20px;
-  padding: 0 22px 18px;
+}
+.team-groups-content {
+  padding: 0 18px 18px;
 }
 .team-groups-help {
+  margin: 12px 0 0;
   color: #71809b;
 }
 .team-group-create {

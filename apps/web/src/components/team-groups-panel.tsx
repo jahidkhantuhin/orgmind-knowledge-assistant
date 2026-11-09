@@ -213,100 +213,106 @@ export function TeamGroupsPanel({
         <strong>Teams and groups</strong>
         <span>{groups.length} groups</span>
       </div>
-      <p className="team-groups-help">
-        Create a group, then assign workspace members. Groups can be used to share knowledge
-        folders.
-      </p>
-      <form className="team-group-create" onSubmit={(event) => void createGroup(event)}>
-        <label htmlFor="team-group-name">New group</label>
-        <input
-          id="team-group-name"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          minLength={2}
-          maxLength={80}
-          required
-          placeholder="e.g. People Operations"
-        />
-        <button className="primary-button" type="submit" disabled={busy}>
-          {busy ? 'Creating…' : 'Create group'}
-        </button>
-      </form>
-      {groups.length > 0 && (
-        <div className="team-group-admin-list">
-          <strong>Manage groups</strong>
-          {groups.map((group) =>
-            editingGroupId === group.id ? (
-              <form className="team-group-edit-form" key={group.id} onSubmit={renameGroup}>
-                <input
-                  aria-label={`Rename ${group.name}`}
-                  value={editingName}
-                  onChange={(event) => setEditingName(event.target.value)}
-                  minLength={2}
-                  maxLength={80}
-                  required
-                  autoFocus
-                />
-                <button className="secondary-button" type="submit" disabled={busy}>
-                  Save
-                </button>
-                <button className="text-button" type="button" onClick={() => setEditingGroupId('')}>
-                  Cancel
-                </button>
-              </form>
-            ) : (
-              <div className="team-group-admin-row" key={group.id}>
-                <span>{group.name}</span>
-                <div>
+      <div className="team-groups-content">
+        <p className="team-groups-help">
+          Create a group, then assign workspace members. Groups can be used to share knowledge
+          folders.
+        </p>
+        <form className="team-group-create" onSubmit={(event) => void createGroup(event)}>
+          <label htmlFor="team-group-name">New group</label>
+          <input
+            id="team-group-name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            minLength={2}
+            maxLength={80}
+            required
+            placeholder="e.g. People Operations"
+          />
+          <button className="primary-button" type="submit" disabled={busy}>
+            {busy ? 'Creating…' : 'Create group'}
+          </button>
+        </form>
+        {groups.length > 0 && (
+          <div className="team-group-admin-list">
+            <strong>Manage groups</strong>
+            {groups.map((group) =>
+              editingGroupId === group.id ? (
+                <form className="team-group-edit-form" key={group.id} onSubmit={renameGroup}>
+                  <input
+                    aria-label={`Rename ${group.name}`}
+                    value={editingName}
+                    onChange={(event) => setEditingName(event.target.value)}
+                    minLength={2}
+                    maxLength={80}
+                    required
+                    autoFocus
+                  />
+                  <button className="secondary-button" type="submit" disabled={busy}>
+                    Save
+                  </button>
                   <button
                     className="text-button"
                     type="button"
-                    onClick={() => {
-                      setEditingGroupId(group.id);
-                      setEditingName(group.name);
-                    }}
+                    onClick={() => setEditingGroupId('')}
                   >
-                    Edit
+                    Cancel
                   </button>
-                  <button
-                    className="member-remove-button"
-                    type="button"
-                    onClick={() => void deleteGroup(group)}
-                  >
-                    Delete
-                  </button>
+                </form>
+              ) : (
+                <div className="team-group-admin-row" key={group.id}>
+                  <span>{group.name}</span>
+                  <div>
+                    <button
+                      className="text-button"
+                      type="button"
+                      onClick={() => {
+                        setEditingGroupId(group.id);
+                        setEditingName(group.name);
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="member-remove-button"
+                      type="button"
+                      onClick={() => void deleteGroup(group)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ),
+            )}
+          </div>
+        )}
+        {groups.length > 0 && members.length > 0 && (
+          <div className="team-group-members">
+            {members.map((member) => (
+              <div className="team-group-member" key={member.userId}>
+                <div>
+                  <strong>{member.name}</strong>
+                  <small>{member.email}</small>
+                </div>
+                <div className="team-group-checks">
+                  {groups.map((group) => (
+                    <label key={group.id}>
+                      <input
+                        type="checkbox"
+                        checked={member.groupIds.includes(group.id)}
+                        onChange={(event) =>
+                          void updateMember(member, group.id, event.target.checked)
+                        }
+                      />{' '}
+                      {group.name}
+                    </label>
+                  ))}
                 </div>
               </div>
-            ),
-          )}
-        </div>
-      )}
-      {groups.length > 0 && members.length > 0 && (
-        <div className="team-group-members">
-          {members.map((member) => (
-            <div className="team-group-member" key={member.userId}>
-              <div>
-                <strong>{member.name}</strong>
-                <small>{member.email}</small>
-              </div>
-              <div className="team-group-checks">
-                {groups.map((group) => (
-                  <label key={group.id}>
-                    <input
-                      type="checkbox"
-                      checked={member.groupIds.includes(group.id)}
-                      onChange={(event) =>
-                        void updateMember(member, group.id, event.target.checked)
-                      }
-                    />{' '}
-                    {group.name}
-                  </label>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
