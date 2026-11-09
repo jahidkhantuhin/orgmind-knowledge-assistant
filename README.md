@@ -50,6 +50,19 @@ Pipeline-builder tests run with `pnpm --filter @orgmind/api test`. An optional i
 
 An admin can open **Settings → Members → Retrieval settings** to enable query rewriting and Cohere reranking for the workspace. Query rewriting uses the configured Google chat model; Cohere Rerank API v2 with `rerank-v5.0-fast` reorders the top `CHAT_RERANK_CANDIDATE_COUNT` search candidates before the top `CHAT_TOP_K` passages are used. The development Retrieval debug drawer shows fused rank and score alongside rerank rank and score, so the ordering change is visible. Cohere is called with the built-in `fetch`; no Cohere SDK is required. Reranking is unavailable until `COHERE_API_KEY` is set.
 
+### Reading Retrieval debug ranks and scores
+
+In development, expand **Retrieval debug** below an assistant answer. Each row is one retrieved chunk. A rank is that chunk's position in a particular result list; rank `1` is first. A score is the search or reranker system's relevance value. Compare ranks within a column, but do not compare score magnitudes across columns because each system uses a different scale.
+
+| Column               | What it shows                                                                                                                                              |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Vector rank / score  | Position and similarity score from MongoDB `$vectorSearch` (semantic matching).                                                                            |
+| Keyword rank / score | Position and relevance score from MongoDB `$search` (text matching).                                                                                       |
+| Fused rank / score   | Position and combined score after MongoDB `$rankFusion` merges vector and keyword rankings. The default fusion weights are 0.7 vector and 0.3 keyword.     |
+| Rerank rank / score  | Position and relevance score returned by Cohere after it reorders the fused candidates. This is populated when reranking is enabled and returns the chunk. |
+
+For example, a chunk can rank `6` in keyword search but `2` after reranking: Cohere moved it higher based on its relevance to the question. A dash means that ranking did not return a value for that chunk, or that the corresponding search/reranking leg was not used. Scores are relevance signals, not percentages or calibrated confidence probabilities.
+
 Optional contextual enrichment generates a short, source-grounded context sentence and prepends it to each chunk only for embedding. Original chunk text remains the displayed source. It is disabled by default to avoid added ingestion time and model usage; enable it with `CONTEXTUAL_ENRICHMENT_ENABLED=true`, then reprocess documents. A MongoDB cache keyed by organization, document, chunk content, and model avoids repeating generation during reprocessing; cache entries expire after `CONTEXT_ENRICHMENT_CACHE_TTL_DAYS` (default 180) and are removed when the document is deleted. Query rewriting is disabled by default and can be enabled from workspace settings.
 
 ```powershell

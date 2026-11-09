@@ -88,3 +88,4 @@
 - Added configurable pacing between Gemini answer and judge requests (`EVAL_GEMINI_REQUEST_INTERVAL_MS`, default 7000 ms) to reduce free-tier 429 failures; the current golden run can make up to 18 Gemini requests, so it runs more slowly and still shares quota with other project traffic.
 - Added a deterministic `pnpm eval:smoke` CI job with a recall regression threshold. It does not call Google or Cohere services.
 - Added `EVAL_ORGANIZATION_ID`, `EVAL_MIN_RECALL_AT_K`, `EVAL_MAX_RERANK_RECALL_DROP`, and `EVAL_GEMINI_REQUEST_INTERVAL_MS` to `.env.example`; README documents setup, provider quota impact, reports, comparison strategies, metric meanings, and what the pass badge checks.
+- Added a dedicated README explanation of the development Retrieval debug table: vector, keyword, fused, and rerank ranks/scores; how to interpret missing values; and why scores across search systems are not directly comparable.
