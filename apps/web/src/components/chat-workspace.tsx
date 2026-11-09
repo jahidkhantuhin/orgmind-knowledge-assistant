@@ -335,7 +335,10 @@ function ChatThread({
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState('');
   const [selectedCitation, setSelectedCitation] = useState<ChatCitation | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
+  const followScrollRef = useRef(true);
+  const pendingTextRef = useRef('');
+  const textTimerRef = useRef<number | null>(null);
   const [messages, setMessages] = useState<OrgMindMessage[]>([]);
   const [status, setStatus] = useState<'ready' | 'streaming'>('ready');
   const [streamError, setStreamError] = useState('');
@@ -364,11 +367,26 @@ function ChatThread({
     };
   }, [conversation.id, organizationId, setMessages]);
 
-  useEffect(() => () => activeRequest.current?.abort(), []);
+  useEffect(
+    () => () => {
+      activeRequest.current?.abort();
+      if (textTimerRef.current !== null) window.clearTimeout(textTimerRef.current);
+      textTimerRef.current = null;
+      pendingTextRef.current = '';
+    },
+    [],
+  );
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [messages]);
+    const messageList = messageListRef.current;
+    if (!messageList || !followScrollRef.current) return;
+    messageList.scrollTo({ top: messageList.scrollHeight, behavior: 'auto' });
+  }, [messages, historyLoading, streamError]);
+
+  function updateFollowScroll(element: HTMLDivElement) {
+    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+    followScrollRef.current = distanceFromBottom < 120;
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -387,6 +405,10 @@ function ChatThread({
     };
     const controller = new AbortController();
     activeRequest.current = controller;
+    followScrollRef.current = true;
+    pendingTextRef.current = '';
+    if (textTimerRef.current !== null) window.clearTimeout(textTimerRef.current);
+    textTimerRef.current = null;
     const toastId = notify({
       kind: 'loading',
       title: 'Searching your workspace',
@@ -440,6 +462,52 @@ function ChatThread({
       let citationsFinalized = false;
       let streamFailed = false;
       let done = false;
+
+      const appendText = (delta: string) => {
+        setMessages((current) =>
+          current.map((message) => {
+            if (message.id !== responseMessageId) return message;
+            const textPart = message.parts.find((item) => item.type === 'text');
+            return {
+              ...message,
+              parts: textPart
+                ? message.parts.map((item) =>
+                    item === textPart ? { ...item, text: textPart.text + delta } : item,
+                  )
+                : [...message.parts, { type: 'text', text: delta }],
+            };
+          }),
+        );
+      };
+
+      const scheduleTextFlush = () => {
+        if (textTimerRef.current !== null) return;
+        textTimerRef.current = window.setTimeout(() => {
+          textTimerRef.current = null;
+          const pending = pendingTextRef.current;
+          if (!pending) return;
+
+          const targetLength = Math.min(14, pending.length);
+          const boundaryOffset = pending
+            .slice(Math.min(8, targetLength), Math.min(26, pending.length))
+            .search(/\s/);
+          const revealLength =
+            boundaryOffset >= 0
+              ? Math.min(26, Math.min(8, targetLength) + boundaryOffset + 1)
+              : targetLength;
+          const delta = pending.slice(0, revealLength);
+          pendingTextRef.current = pending.slice(revealLength);
+          appendText(delta);
+          if (pendingTextRef.current) scheduleTextFlush();
+        }, 45);
+      };
+
+      const waitForPendingText = async () => {
+        while (pendingTextRef.current || textTimerRef.current !== null) {
+          await new Promise((resolve) => window.setTimeout(resolve, 20));
+        }
+      };
+
       while (!done) {
         const result = await reader.read();
         buffer += decoder.decode(result.value, { stream: !result.done });
@@ -480,22 +548,8 @@ function ChatThread({
             });
           } else if (part.type === 'text-delta' && typeof part.delta === 'string') {
             answerText += part.delta;
-            setMessages((current) =>
-              current.map((message) => {
-                if (message.id !== responseMessageId) return message;
-                const textPart = message.parts.find((item) => item.type === 'text');
-                return {
-                  ...message,
-                  parts: textPart
-                    ? message.parts.map((item) =>
-                        item === textPart
-                          ? { ...item, text: (item.text + part.delta) as string }
-                          : item,
-                      )
-                    : [...message.parts, { type: 'text', text: part.delta as string }],
-                };
-              }),
-            );
+            pendingTextRef.current += part.delta;
+            scheduleTextFlush();
           } else if (part.type === 'error' && typeof part.errorText === 'string') {
             streamFailed = true;
             setStreamError(part.errorText);
@@ -521,6 +575,8 @@ function ChatThread({
             );
           } else if (part.type === 'finish' && !citationsFinalized) {
             citationsFinalized = true;
+            await waitForPendingText();
+            if (controller.signal.aborted) return;
             const usedCitations = citationsReferencedInAnswer(answerText, streamedCitations);
             if (usedCitations.length === 0) setSelectedCitation(null);
             setMessages((current) =>
@@ -545,6 +601,8 @@ function ChatThread({
         }
         done = result.done;
       }
+      await waitForPendingText();
+      if (controller.signal.aborted) return;
       if (!streamFailed) {
         updateToast(toastId, {
           kind: 'success',
@@ -568,6 +626,11 @@ function ChatThread({
         setMessages((current) => current.filter((message) => message.id !== localAssistantId));
       }
     } finally {
+      if (textTimerRef.current !== null) {
+        window.clearTimeout(textTimerRef.current);
+        textTimerRef.current = null;
+      }
+      pendingTextRef.current = '';
       if (activeRequest.current === controller) activeRequest.current = null;
       setStatus('ready');
     }
@@ -585,7 +648,12 @@ function ChatThread({
             <i /> Document-grounded
           </span>
         </header>
-        <div className="chat-message-list" aria-live="polite">
+        <div
+          className="chat-message-list"
+          ref={messageListRef}
+          onScroll={(event) => updateFollowScroll(event.currentTarget)}
+          aria-live="polite"
+        >
           {historyLoading ? (
             <p className="chat-loading">Loading messages…</p>
           ) : messages.length === 0 ? (
@@ -595,96 +663,116 @@ function ChatThread({
               <p>OrgMind searches your documents and cites the passages behind each answer.</p>
             </div>
           ) : (
-            messages.map((message) => (
-              <article className={`chat-message message-${message.role}`} key={message.id}>
-                <div className="chat-message-label">
-                  {message.role === 'user' ? 'You' : 'OrgMind'}
-                </div>
-                <div className="chat-message-content">
-                  {message.parts.map((part, index) => {
-                    if (part.type === 'text')
-                      return <p key={`${message.id}-${index}`}>{part.text}</p>;
-                    if (part.type === 'data-citations') {
-                      const citations = part.data as ChatCitation[];
-                      return citations.length > 0 ? (
-                        <div
-                          className="citation-chips"
-                          key={`${message.id}-${index}`}
-                          aria-label="Answer sources"
-                        >
-                          {citations.map((citation) => (
-                            <button
-                              className="citation-chip"
-                              key={citation.chunkId}
-                              type="button"
-                              onClick={() =>
-                                setSelectedCitation(ChatCitationSchema.parse(citation))
-                              }
-                            >
-                              {citation.documentName} · #{citation.chunkIndex + 1}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null;
-                    }
-                    if (
-                      part.type === 'data-retrieval-debug' &&
-                      process.env.NODE_ENV === 'development'
-                    ) {
-                      return (
-                        <details className="retrieval-debug" key={`${message.id}-${index}`}>
-                          <summary>Retrieval debug · {part.data.length} chunks</summary>
-                          <div className="retrieval-debug-table-wrap">
-                            <table>
-                              <thead>
-                                <tr>
-                                  <th>Chunk</th>
-                                  <th>Vector rank / score</th>
-                                  <th>Keyword rank / score</th>
-                                  <th>Fused rank / score</th>
-                                  <th>Rerank rank / score</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {part.data.map((row) => (
-                                  <tr key={row.chunkId}>
-                                    <td>
-                                      {row.documentName} · #{row.chunkIndex + 1}
-                                    </td>
-                                    <td>
-                                      {row.vectorRank ?? '—'} / {row.vectorScore?.toFixed(4) ?? '—'}
-                                    </td>
-                                    <td>
-                                      {row.keywordRank ?? '—'} /{' '}
-                                      {row.keywordScore?.toFixed(4) ?? '—'}
-                                    </td>
-                                    <td>
-                                      {row.fusedRank ?? '—'} / {row.fusedScore.toFixed(5)}
-                                    </td>
-                                    <td>
-                                      {row.rerankRank ?? '—'} / {row.rerankScore?.toFixed(4) ?? '—'}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
+            messages.map((message) => {
+              const isStreamingAssistant =
+                status === 'streaming' &&
+                message.role === 'assistant' &&
+                message.id === messages.at(-1)?.id;
+              const hasText = message.parts.some(
+                (part) => part.type === 'text' && part.text.length > 0,
+              );
+              return (
+                <article className={`chat-message message-${message.role}`} key={message.id}>
+                  <div className="chat-message-label">
+                    {message.role === 'user' ? 'You' : 'OrgMind'}
+                  </div>
+                  <div
+                    className={`chat-message-content${isStreamingAssistant ? ' is-streaming' : ''}`}
+                  >
+                    {message.parts.map((part, index) => {
+                      if (part.type === 'text') {
+                        if (!part.text && isStreamingAssistant) return null;
+                        return (
+                          <p key={`${message.id}-${index}`}>
+                            {part.text}
+                            {isStreamingAssistant && <span className="assistant-stream-caret" />}
+                          </p>
+                        );
+                      }
+                      if (part.type === 'data-citations') {
+                        const citations = part.data as ChatCitation[];
+                        return citations.length > 0 ? (
+                          <div
+                            className="citation-chips"
+                            key={`${message.id}-${index}`}
+                            aria-label="Answer sources"
+                          >
+                            {citations.map((citation) => (
+                              <button
+                                className="citation-chip"
+                                key={citation.chunkId}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedCitation(ChatCitationSchema.parse(citation))
+                                }
+                              >
+                                {citation.documentName} · #{citation.chunkIndex + 1}
+                              </button>
+                            ))}
                           </div>
-                        </details>
-                      );
-                    }
-                    return null;
-                  })}
-                  {status === 'streaming' &&
-                    message.role === 'assistant' &&
-                    !message.parts.some((part) => part.type === 'text' && part.text.length > 0) && (
-                      <p className="chat-loading">Searching your documents…</p>
+                        ) : null;
+                      }
+                      if (
+                        part.type === 'data-retrieval-debug' &&
+                        process.env.NODE_ENV === 'development'
+                      ) {
+                        return (
+                          <details className="retrieval-debug" key={`${message.id}-${index}`}>
+                            <summary>Retrieval debug · {part.data.length} chunks</summary>
+                            <div className="retrieval-debug-table-wrap">
+                              <table>
+                                <thead>
+                                  <tr>
+                                    <th>Chunk</th>
+                                    <th>Vector rank / score</th>
+                                    <th>Keyword rank / score</th>
+                                    <th>Fused rank / score</th>
+                                    <th>Rerank rank / score</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {part.data.map((row) => (
+                                    <tr key={row.chunkId}>
+                                      <td>
+                                        {row.documentName} · #{row.chunkIndex + 1}
+                                      </td>
+                                      <td>
+                                        {row.vectorRank ?? '—'} /{' '}
+                                        {row.vectorScore?.toFixed(4) ?? '—'}
+                                      </td>
+                                      <td>
+                                        {row.keywordRank ?? '—'} /{' '}
+                                        {row.keywordScore?.toFixed(4) ?? '—'}
+                                      </td>
+                                      <td>
+                                        {row.fusedRank ?? '—'} / {row.fusedScore.toFixed(5)}
+                                      </td>
+                                      <td>
+                                        {row.rerankRank ?? '—'} /{' '}
+                                        {row.rerankScore?.toFixed(4) ?? '—'}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </details>
+                        );
+                      }
+                      return null;
+                    })}
+                    {isStreamingAssistant && !hasText && (
+                      <div className="assistant-typing-indicator" role="status">
+                        <span>Searching your documents</span>
+                        <i />
+                        <i />
+                        <i />
+                      </div>
                     )}
-                </div>
-              </article>
-            ))
-          )}
-          {status === 'streaming' && messages.at(-1)?.role === 'user' && (
-            <p className="chat-loading">Searching your documents…</p>
+                  </div>
+                </article>
+              );
+            })
           )}
           {historyError && (
             <p className="chat-error" role="alert">
@@ -696,7 +784,6 @@ function ChatThread({
               {streamError}
             </p>
           )}
-          <div ref={bottomRef} />
         </div>
         <form className="chat-composer" onSubmit={submit}>
           <textarea

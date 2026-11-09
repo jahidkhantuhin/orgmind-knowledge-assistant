@@ -217,6 +217,41 @@
   line-height: 1.75;
   overflow-wrap: anywhere;
 }
+.chat-message-content.is-streaming {
+  min-height: 25px;
+}
+.assistant-typing-indicator {
+  min-height: 25px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #858e9d;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.assistant-typing-indicator i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #8c7cf0;
+  animation: assistant-dot 1s ease-in-out infinite;
+}
+.assistant-typing-indicator i:nth-of-type(2) {
+  animation-delay: 120ms;
+}
+.assistant-typing-indicator i:nth-of-type(3) {
+  animation-delay: 240ms;
+}
+.assistant-stream-caret {
+  display: inline-block;
+  width: 2px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.14em;
+  border-radius: 2px;
+  background: #796aec;
+  animation: assistant-caret 1s steps(2, start) infinite;
+}
 .message-user .chat-message-content {
   padding: 13px 16px;
   border: 1px solid #e5e1ff;
@@ -235,6 +270,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
+  animation: citation-arrive 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 .citation-chip {
   max-width: 100%;
@@ -365,6 +401,33 @@
   color: #858e9d;
   font-size: 12px;
 }
+@keyframes assistant-dot {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+@keyframes assistant-caret {
+  to {
+    visibility: hidden;
+  }
+}
+@keyframes citation-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 .chat-error {
   padding: 9px 11px;
   border-radius: 8px;
@@ -475,6 +538,9 @@
 .dark .chat-grounded-pill {
   border-color: #394252;
 }
+.dark .assistant-typing-indicator {
+  color: #aab4c4;
+}
 .dark .citation-chip {
   border-color: #494171;
   background: #2b2745;
@@ -584,5 +650,12 @@
   }
   .chat-welcome {
     padding: 24px 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .assistant-typing-indicator i,
+  .assistant-stream-caret,
+  .citation-chips {
+    animation: none;
   }
 }
