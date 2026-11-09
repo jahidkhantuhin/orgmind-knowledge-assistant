@@ -597,13 +597,19 @@
   inset: 0;
   display: grid;
   place-items: center;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 20px;
   background: rgb(12 16 24 / 62%);
 }
 .share-dialog {
   width: min(100%, 560px);
+  min-width: 0;
   max-height: min(85vh, 760px);
+  max-height: min(85dvh, 760px);
+  overflow-x: hidden;
   overflow-y: auto;
+  overflow-wrap: anywhere;
   padding: 24px;
   border: 1px solid #e3e7ef;
   border-radius: 18px;
@@ -618,6 +624,12 @@
   align-items: center;
   gap: 12px;
 }
+.share-dialog > header > div {
+  min-width: 0;
+}
+.share-dialog > footer {
+  flex-wrap: wrap;
+}
 .share-dialog h2 {
   margin: 3px 0 0;
   font-size: 22px;
@@ -625,6 +637,26 @@
 .share-dialog > p {
   color: #71809b;
   line-height: 1.5;
+}
+.share-dialog fieldset {
+  min-width: 0;
+  max-width: 100%;
+}
+.share-scope {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 14px 0;
+  padding: 0;
+  border: 0;
+}
+.share-scope legend {
+  width: 100%;
+  margin-bottom: 6px;
+}
+.share-scope label {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .share-close {
   border: 0;
@@ -651,6 +683,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.share-options label input {
+  flex: 0 0 auto;
 }
 .share-options label span {
   color: #71809b;
@@ -1013,7 +1050,17 @@
     padding: 13px;
   }
   .share-dialog {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
     padding: 18px;
+  }
+  .share-overlay {
+    place-items: start center;
+    padding: 12px;
+  }
+  .share-options fieldset {
+    padding: 10px;
   }
   .team-group-member {
     align-items: flex-start;

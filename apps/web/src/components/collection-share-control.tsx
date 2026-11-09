@@ -44,7 +44,7 @@ export function CollectionShareControl({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [scope, setScope] = useState<'document' | 'folder'>('folder');
+  const [scope, setScope] = useState<'document' | 'folder'>('document');
   function selectAccess(tokens: string[]) {
     setRoles(allRoles.filter((role) => tokens.includes(`role:${role}`)));
     setUserIds(tokens.filter((token) => token.startsWith('user:')).map((token) => token.slice(5)));
@@ -80,8 +80,8 @@ export function CollectionShareControl({
         await accessResponse.json(),
       ).acl;
       setFolderAcl(currentFolderAcl);
-      setScope('folder');
-      selectAccess(currentFolderAcl);
+      setScope('document');
+      selectAccess(acl);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to load sharing options.');
     } finally {
@@ -229,18 +229,21 @@ export function CollectionShareControl({
               <div className="share-options">
                 <fieldset>
                   <legend>Workspace roles</legend>
-                  {allRoles
-                    .filter((role) => role !== 'admin')
-                    .map((role) => (
-                      <label key={role}>
-                        <input
-                          type="checkbox"
-                          checked={roles.includes(role)}
-                          onChange={(event) => toggle(roles, setRoles, role, event.target.checked)}
-                        />{' '}
-                        {role === 'member' ? 'Members' : 'Viewers'}
-                      </label>
-                    ))}
+                  {allRoles.map((role) => (
+                    <label key={role}>
+                      <input
+                        type="checkbox"
+                        checked={role === 'admin' || roles.includes(role)}
+                        disabled={role === 'admin'}
+                        onChange={(event) => toggle(roles, setRoles, role, event.target.checked)}
+                      />{' '}
+                      {role === 'admin'
+                        ? 'Admins (always retain access)'
+                        : role === 'member'
+                          ? 'Members'
+                          : 'Viewers'}
+                    </label>
+                  ))}
                 </fieldset>
                 <fieldset>
                   <legend>Specific people</legend>
