@@ -288,6 +288,13 @@
     left: max(12px, env(safe-area-inset-left));
     width: auto;
   }
+  .toast-viewport-chat {
+    top: calc(env(safe-area-inset-top) + 104px);
+    right: max(12px, env(safe-area-inset-right));
+    bottom: auto;
+    left: max(12px, env(safe-area-inset-left));
+    max-height: min(30dvh, 220px);
+  }
   .app-toast {
     grid-template-columns: 34px minmax(0, 1fr) 28px;
     gap: 10px;

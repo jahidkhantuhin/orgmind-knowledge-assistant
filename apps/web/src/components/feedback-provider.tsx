@@ -12,6 +12,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react';
+import { usePathname } from 'next/navigation';
 
 type ToastKind = 'success' | 'error' | 'info' | 'loading';
 export type ToastOptions = {
@@ -60,6 +61,7 @@ export function useFeedback() {
 }
 
 export function FeedbackProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [toasts, setToasts] = useState<ToastEntry[]>([]);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -183,7 +185,12 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
   return (
     <FeedbackContext.Provider value={contextValue}>
       {children}
-      <div className="toast-viewport" aria-label="Notifications" aria-live="polite" role="region">
+      <div
+        className={`toast-viewport${pathname === '/chat' ? ' toast-viewport-chat' : ''}`}
+        aria-label="Notifications"
+        aria-live="polite"
+        role="region"
+      >
         {toasts.map((toast) => (
           <article
             className={`app-toast toast-${toast.kind}`}

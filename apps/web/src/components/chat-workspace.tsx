@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import {
   ChatCitationSchema,
   RetrievalDebugChunkSchema,
@@ -377,10 +377,21 @@ function ChatThread({
     [],
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const messageList = messageListRef.current;
     if (!messageList || !followScrollRef.current) return;
-    messageList.scrollTo({ top: messageList.scrollHeight, behavior: 'auto' });
+    const scrollToLatest = () => {
+      if (followScrollRef.current) {
+        messageList.scrollTo({ top: messageList.scrollHeight, behavior: 'auto' });
+      }
+    };
+    scrollToLatest();
+
+    const observer = new ResizeObserver(scrollToLatest);
+    observer.observe(messageList);
+    const latestMessage = messageList.lastElementChild;
+    if (latestMessage) observer.observe(latestMessage);
+    return () => observer.disconnect();
   }, [messages, historyLoading, streamError]);
 
   function updateFollowScroll(element: HTMLDivElement) {
@@ -801,7 +812,10 @@ function ChatThread({
             disabled={historyLoading || status !== 'ready'}
           />
           <div className="chat-composer-footer">
-            <span>Answers are based on documents in this workspace.</span>
+            <span className="chat-composer-hint-desktop">
+              Answers are based on documents in this workspace.
+            </span>
+            <span className="chat-composer-hint-mobile">Grounded in workspace documents.</span>
             <button
               className="primary-button"
               type="submit"
