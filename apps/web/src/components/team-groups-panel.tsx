@@ -8,15 +8,16 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export function TeamGroupsPanel({
   organizationId,
-  initialMembers,
+  members,
+  onMembersUpdated,
   initialGroups,
 }: {
   organizationId: string;
-  initialMembers: OrganizationMember[];
+  members: OrganizationMember[];
+  onMembersUpdated: (_updatedMembers: OrganizationMember[]) => void;
   initialGroups: TeamGroup[];
 }) {
   const { confirm, notify, updateToast } = useFeedback();
-  const [members, setMembers] = useState(initialMembers);
   const [groups, setGroups] = useState(initialGroups);
   const [name, setName] = useState('');
   const [editingGroupId, setEditingGroupId] = useState('');
@@ -85,8 +86,8 @@ export function TeamGroupsPanel({
         },
       );
       if (!response.ok) throw new Error('Could not update team membership.');
-      setMembers((current) =>
-        current.map((item) => (item.userId === member.userId ? { ...item, groupIds } : item)),
+      onMembersUpdated(
+        members.map((item) => (item.userId === member.userId ? { ...item, groupIds } : item)),
       );
       updateToast(toastId, {
         kind: 'success',
@@ -184,8 +185,8 @@ export function TeamGroupsPanel({
         throw new Error(apiMessage ?? 'Could not delete this team group.');
       }
       setGroups((current) => current.filter((item) => item.id !== group.id));
-      setMembers((current) =>
-        current.map((member) => ({
+      onMembersUpdated(
+        members.map((member) => ({
           ...member,
           groupIds: member.groupIds.filter((id) => id !== group.id),
         })),

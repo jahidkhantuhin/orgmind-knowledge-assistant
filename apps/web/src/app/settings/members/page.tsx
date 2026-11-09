@@ -8,10 +8,9 @@ import {
 import { WorkspaceNavigation } from '../../../components/workspace-navigation';
 import { RetrievalSettingsPanel } from '../../../components/retrieval-settings-panel';
 import { getCurrentUser } from '../../../lib/current-user';
-import { TeamGroupsPanel } from '../../../components/team-groups-panel';
 import { AddWorkspaceMemberForm } from '../../../components/add-workspace-member-form';
 import { WorkspaceInvitationsPanel } from '../../../components/workspace-invitations-panel';
-import { OrganizationMembersTable } from '../../../components/organization-members-table';
+import { WorkspaceMembersManager } from '../../../components/workspace-members-manager';
 
 const apiUrl =
   process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -55,12 +54,8 @@ export default async function MembersPage() {
         </p>
         <AddWorkspaceMemberForm organizationId={organization.organizationId} />
         <WorkspaceInvitationsPanel organizationId={organization.organizationId} />
-        <OrganizationMembersTable
-          organizationId={organization.organizationId}
-          initialMembers={members}
-        />
-        <TeamGroupsPanel
-          key={members.length}
+        <WorkspaceMembersManager
+          key={JSON.stringify(members)}
           organizationId={organization.organizationId}
           initialMembers={members}
           initialGroups={groups}

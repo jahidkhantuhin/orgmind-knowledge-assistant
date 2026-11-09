@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   MembershipRoleSchema,
+  OrganizationMembersResponseSchema,
   type MembershipRole,
   type OrganizationMember,
 } from '@orgmind/shared';
@@ -13,17 +14,59 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export function OrganizationMembersTable({
   organizationId,
-  initialMembers,
+  members,
+  onMembersUpdated,
 }: {
   organizationId: string;
-  initialMembers: OrganizationMember[];
+  members: OrganizationMember[];
+  onMembersUpdated: (_updatedMembers: OrganizationMember[]) => void;
 }) {
   const router = useRouter();
   const { confirm, notify, updateToast } = useFeedback();
-  const [members, setMembers] = useState(initialMembers);
+  const [refreshing, setRefreshing] = useState(false);
   const [removingUserId, setRemovingUserId] = useState('');
   const [savingRoleUserId, setSavingRoleUserId] = useState('');
   const [selectedRoles, setSelectedRoles] = useState<Record<string, MembershipRole>>({});
+
+  async function refreshMembers() {
+    setRefreshing(true);
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Refreshing workspace members',
+      description: 'Getting the latest member list…',
+    });
+    try {
+      const response = await fetch(
+        `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/members`,
+        { credentials: 'include', cache: 'no-store' },
+      );
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          typeof payload === 'object' && payload !== null && 'error' in payload
+            ? (payload.error as { message?: string }).message
+            : undefined;
+        throw new Error(message ?? 'Could not refresh workspace members.');
+      }
+      const updatedMembers = OrganizationMembersResponseSchema.parse(payload).members;
+      onMembersUpdated(updatedMembers);
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Members refreshed',
+        description: `${updatedMembers.length} ${updatedMembers.length === 1 ? 'person' : 'people'} in this workspace.`,
+        persistent: false,
+      });
+    } catch (cause) {
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not refresh members',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   function selectedRole(member: OrganizationMember): MembershipRole {
     return selectedRoles[member.userId] ?? member.role;
@@ -56,9 +99,10 @@ export function OrganizationMembersTable({
             : undefined;
         throw new Error(message ?? 'Could not update this workspace member role.');
       }
-      setMembers((current) =>
-        current.map((item) => (item.userId === member.userId ? { ...item, role } : item)),
+      const updatedMembers = members.map((item) =>
+        item.userId === member.userId ? { ...item, role } : item,
       );
+      onMembersUpdated(updatedMembers);
       setSelectedRoles((current) => {
         const next = { ...current };
         delete next[member.userId];
@@ -111,7 +155,8 @@ export function OrganizationMembersTable({
             : undefined;
         throw new Error(message ?? 'Could not remove this workspace member.');
       }
-      setMembers((current) => current.filter((item) => item.userId !== member.userId));
+      const updatedMembers = members.filter((item) => item.userId !== member.userId);
+      onMembersUpdated(updatedMembers);
       updateToast(toastId, {
         kind: 'success',
         title: 'Member removed',
@@ -135,9 +180,23 @@ export function OrganizationMembersTable({
     <section className="members-card">
       <div className="members-card-head">
         <strong>Workspace members</strong>
-        <span>
-          {members.length} {members.length === 1 ? 'person' : 'people'}
-        </span>
+        <div className="members-card-tools">
+          <button
+            type="button"
+            className="members-refresh-button"
+            onClick={() => void refreshMembers()}
+            disabled={refreshing}
+            aria-busy={refreshing}
+          >
+            <span className="members-refresh-icon" aria-hidden="true">
+              ↻
+            </span>
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+          <span>
+            {members.length} {members.length === 1 ? 'person' : 'people'}
+          </span>
+        </div>
       </div>
       {members.length === 0 ? (
         <p className="members-empty">No members found.</p>
