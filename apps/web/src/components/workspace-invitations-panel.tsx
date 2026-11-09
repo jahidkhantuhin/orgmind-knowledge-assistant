@@ -7,15 +7,16 @@ import {
   type MembershipRole,
   type WorkspaceInvitationSummary,
 } from '@orgmind/shared';
+import { useFeedback } from './feedback-provider';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: string }) {
+  const { confirm, notify, updateToast } = useFeedback();
   const [invitations, setInvitations] = useState<WorkspaceInvitationSummary[]>([]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<MembershipRole>('viewer');
   const [inviteLink, setInviteLink] = useState('');
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
@@ -43,8 +44,12 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
     event.preventDefault();
     setPending(true);
     setError('');
-    setMessage('');
     setInviteLink('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Creating invitation',
+      description: `Preparing a ${role} invite for ${email}…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/invitations`,
@@ -71,19 +76,41 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
         created.invitation,
         ...current.filter((item) => item.email !== created.invitation.email),
       ]);
-      setMessage(
-        'Invitation created. Share the link with the invited person; it expires in 7 days.',
-      );
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Invitation ready',
+        description: `Share the private link with ${created.invitation.email}. It expires in 7 days.`,
+        persistent: false,
+      });
       setEmail('');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create this invitation.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not create invitation',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     } finally {
       setPending(false);
     }
   }
 
   async function revokeInvitation(invitationId: string) {
-    setError('');
+    const invitation = invitations.find((item) => item.id === invitationId);
+    if (
+      !invitation ||
+      !(await confirm({
+        title: 'Revoke this invitation?',
+        message: `The invite link for ${invitation.email} will stop working immediately.`,
+        confirmLabel: 'Revoke invite',
+      }))
+    )
+      return;
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Revoking invitation',
+      description: `Invalidating the link for ${invitation.email}…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/invitations/${encodeURIComponent(invitationId)}`,
@@ -91,19 +118,33 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
       );
       if (!response.ok) throw new Error('Could not revoke this invitation.');
       setInvitations((current) => current.filter((item) => item.id !== invitationId));
-      setMessage('Invitation revoked. Its link can no longer be used.');
       setInviteLink('');
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Invitation revoked',
+        description: `The link for ${invitation.email} can no longer be used.`,
+        persistent: false,
+      });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not revoke this invitation.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not revoke invitation',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     }
   }
 
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(inviteLink);
-      setMessage('Invitation link copied.');
+      notify({ kind: 'success', title: 'Invite link copied', description: 'It’s ready to share.' });
     } catch {
-      setMessage('Copy failed. Select and copy the invitation link below.');
+      notify({
+        kind: 'error',
+        title: 'Could not copy link',
+        description: 'Select and copy the invitation link below.',
+      });
     }
   }
 
@@ -156,11 +197,6 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
             </button>
           </div>
         </div>
-      )}
-      {message && (
-        <p className="workspace-invitation-status" role="status">
-          {message}
-        </p>
       )}
       {error && (
         <p className="workspace-invitation-error" role="alert">

@@ -4,6 +4,7 @@
 @import './auth.css';
 @import './knowledge.css';
 @import './chat.css';
+@import './feedback.css';
 
 :root {
   color-scheme: light;

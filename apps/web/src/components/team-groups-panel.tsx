@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import { type OrganizationMember, type TeamGroup } from '@orgmind/shared';
+import { useFeedback } from './feedback-provider';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -14,19 +15,22 @@ export function TeamGroupsPanel({
   initialMembers: OrganizationMember[];
   initialGroups: TeamGroup[];
 }) {
+  const { confirm, notify, updateToast } = useFeedback();
   const [members, setMembers] = useState(initialMembers);
   const [groups, setGroups] = useState(initialGroups);
   const [name, setName] = useState('');
   const [editingGroupId, setEditingGroupId] = useState('');
   const [editingName, setEditingName] = useState('');
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function createGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
-    setError('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Creating team group',
+      description: `Setting up “${name.trim()}”…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/groups`,
@@ -43,9 +47,19 @@ export function TeamGroupsPanel({
         [...current, payload.group].sort((a, b) => a.name.localeCompare(b.name)),
       );
       setName('');
-      setMessage('Team group created. Assign members below.');
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Group created',
+        description: 'Assign members or share a knowledge folder with this group.',
+        persistent: false,
+      });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create this team group.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not create group',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -55,7 +69,11 @@ export function TeamGroupsPanel({
     const groupIds = checked
       ? [...new Set([...member.groupIds, groupId])]
       : member.groupIds.filter((id) => id !== groupId);
-    setError('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Updating group access',
+      description: `${checked ? 'Adding' : 'Removing'} ${member.name}…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(member.userId)}/groups`,
@@ -70,15 +88,30 @@ export function TeamGroupsPanel({
       setMembers((current) =>
         current.map((item) => (item.userId === member.userId ? { ...item, groupIds } : item)),
       );
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Group access updated',
+        description: `${member.name} ${checked ? 'added to' : 'removed from'} the group.`,
+        persistent: false,
+      });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not update team membership.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not update group access',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     }
   }
 
   async function renameGroup(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
-    setError('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Renaming team group',
+      description: `Renaming to “${editingName.trim()}”…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/groups/${encodeURIComponent(editingGroupId)}`,
@@ -105,9 +138,19 @@ export function TeamGroupsPanel({
       );
       setEditingGroupId('');
       setEditingName('');
-      setMessage('Team group renamed.');
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Group renamed',
+        description: `The group is now “${updated.name}”.`,
+        persistent: false,
+      });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not rename this team group.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not rename group',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -115,12 +158,18 @@ export function TeamGroupsPanel({
 
   async function deleteGroup(group: TeamGroup) {
     if (
-      !window.confirm(
-        `Delete “${group.name}”? Its members will lose access granted through this group.`,
-      )
+      !(await confirm({
+        title: `Delete “${group.name}”?`,
+        message: 'Members will lose access to knowledge shared through this group.',
+        confirmLabel: 'Delete group',
+      }))
     )
       return;
-    setError('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Deleting team group',
+      description: `Removing “${group.name}” and its assignments…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/groups/${encodeURIComponent(group.id)}`,
@@ -141,9 +190,19 @@ export function TeamGroupsPanel({
           groupIds: member.groupIds.filter((id) => id !== group.id),
         })),
       );
-      setMessage('Team group deleted and its member assignments removed.');
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Group deleted',
+        description: `“${group.name}” and its member assignments were removed.`,
+        persistent: false,
+      });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not delete this team group.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not delete group',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     }
   }
 
@@ -172,16 +231,6 @@ export function TeamGroupsPanel({
           {busy ? 'Creating…' : 'Create group'}
         </button>
       </form>
-      {error && (
-        <p className="knowledge-message error" role="alert">
-          {error}
-        </p>
-      )}
-      {message && (
-        <p className="knowledge-message success" role="status">
-          {message}
-        </p>
-      )}
       {groups.length > 0 && (
         <div className="team-group-admin-list">
           <strong>Manage groups</strong>

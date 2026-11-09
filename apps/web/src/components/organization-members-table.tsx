@@ -7,6 +7,7 @@ import {
   type MembershipRole,
   type OrganizationMember,
 } from '@orgmind/shared';
+import { useFeedback } from './feedback-provider';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -18,8 +19,8 @@ export function OrganizationMembersTable({
   initialMembers: OrganizationMember[];
 }) {
   const router = useRouter();
+  const { confirm, notify, updateToast } = useFeedback();
   const [members, setMembers] = useState(initialMembers);
-  const [error, setError] = useState('');
   const [removingUserId, setRemovingUserId] = useState('');
   const [savingRoleUserId, setSavingRoleUserId] = useState('');
   const [selectedRoles, setSelectedRoles] = useState<Record<string, MembershipRole>>({});
@@ -31,8 +32,12 @@ export function OrganizationMembersTable({
   async function updateMemberRole(member: OrganizationMember) {
     const role = selectedRole(member);
     if (role === member.role) return;
-    setError('');
     setSavingRoleUserId(member.userId);
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Updating workspace role',
+      description: `Changing ${member.name} to ${role}.`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(member.userId)}/role`,
@@ -59,20 +64,40 @@ export function OrganizationMembersTable({
         delete next[member.userId];
         return next;
       });
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Role updated',
+        description: `${member.name} is now a ${role}.`,
+        persistent: false,
+      });
       router.refresh();
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Could not update this workspace member role.',
-      );
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not update role',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     } finally {
       setSavingRoleUserId('');
     }
   }
 
   async function removeMember(member: OrganizationMember) {
-    if (!window.confirm(`Remove ${member.name} from this workspace?`)) return;
-    setError('');
+    if (
+      !(await confirm({
+        title: `Remove ${member.name}?`,
+        message: 'They will lose access to this workspace and its shared knowledge.',
+        confirmLabel: 'Remove member',
+      }))
+    )
+      return;
     setRemovingUserId(member.userId);
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Removing workspace member',
+      description: `Removing ${member.name}…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(member.userId)}`,
@@ -87,9 +112,20 @@ export function OrganizationMembersTable({
         throw new Error(message ?? 'Could not remove this workspace member.');
       }
       setMembers((current) => current.filter((item) => item.userId !== member.userId));
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Member removed',
+        description: `${member.name} no longer has access to this workspace.`,
+        persistent: false,
+      });
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not remove this workspace member.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not remove member',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     } finally {
       setRemovingUserId('');
     }
@@ -103,11 +139,6 @@ export function OrganizationMembersTable({
           {members.length} {members.length === 1 ? 'person' : 'people'}
         </span>
       </div>
-      {error && (
-        <p className="knowledge-message error" role="alert">
-          {error}
-        </p>
-      )}
       {members.length === 0 ? (
         <p className="members-empty">No members found.</p>
       ) : (

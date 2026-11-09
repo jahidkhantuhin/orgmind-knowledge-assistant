@@ -12,6 +12,8 @@ import {
   type MembershipRole,
 } from '@orgmind/shared';
 import { WorkspaceNavigation } from './workspace-navigation';
+import { useFeedback } from './feedback-provider';
+import { watchDocumentProcessing } from './document-processing';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -53,9 +55,8 @@ export function DocumentDetail({
   role: MembershipRole;
 }) {
   const router = useRouter();
+  const { confirm, notify, updateToast } = useFeedback();
   const [detail, setDetail] = useState(initialDetail);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [chunkError, setChunkError] = useState('');
@@ -120,8 +121,11 @@ export function DocumentDetail({
 
   async function reingest() {
     setBusy(true);
-    setMessage('');
-    setError('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Reprocessing document',
+      description: `Preparing ${document.originalName}…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/documents/${encodeURIComponent(document.id)}/reingest`,
@@ -134,11 +138,27 @@ export function DocumentDetail({
       }
       const updated = DocumentSummarySchema.parse(payload.document);
       setDetail((current) => ({ ...current, document: updated }));
-      setMessage(
-        'Reprocessing has been queued. The existing chunks stay available until the new version is ready.',
+      updateToast(toastId, {
+        kind: 'loading',
+        title: 'Reprocessing document',
+        description: `${document.originalName} · Existing content stays searchable while the new version is prepared.`,
+        persistent: true,
+        progress: updated.progress ?? 0,
+      });
+      watchDocumentProcessing(
+        organizationId,
+        document.id,
+        document.originalName,
+        toastId,
+        updateToast,
       );
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not reprocess this document.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not reprocess document',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -146,22 +166,39 @@ export function DocumentDetail({
 
   async function deleteDocument() {
     if (
-      !window.confirm(
-        `Delete “${document.originalName}” and its ${document.chunkCount ?? 0} chunks?`,
-      )
+      !(await confirm({
+        title: `Delete “${document.originalName}”?`,
+        message: `This permanently removes the document and its ${document.chunkCount ?? 0} searchable sections from the workspace.`,
+        confirmLabel: 'Delete document',
+      }))
     )
       return;
     setBusy(true);
-    setError('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Deleting document',
+      description: `Removing ${document.originalName}…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/documents/${encodeURIComponent(document.id)}`,
         { method: 'DELETE', credentials: 'include' },
       );
       if (!response.ok) throw new Error('Could not delete this document. Please try again.');
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Document deleted',
+        description: `${document.originalName} was removed from the workspace.`,
+        persistent: false,
+      });
       router.push('/knowledge');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not delete this document.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not delete document',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
       setBusy(false);
     }
   }
@@ -229,16 +266,6 @@ export function DocumentDetail({
         {document.failureReason && (
           <p className="knowledge-message error" role="alert">
             {document.failureReason}
-          </p>
-        )}
-        {message && (
-          <p className="knowledge-message success" role="status">
-            {message}
-          </p>
-        )}
-        {error && (
-          <p className="knowledge-message error" role="alert">
-            {error}
           </p>
         )}
         <section className="documents-card chunk-section" aria-label="Document chunks">

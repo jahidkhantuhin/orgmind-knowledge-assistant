@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import { ThemeProvider } from '../components/theme-provider';
+import { FeedbackProvider } from '../components/feedback-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         />
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <FeedbackProvider>{children}</FeedbackProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

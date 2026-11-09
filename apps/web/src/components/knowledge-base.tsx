@@ -4,11 +4,14 @@ import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import {
   OrganizationDocumentsResponseSchema,
+  DocumentSummarySchema,
   type DocumentSummary,
   type MembershipRole,
 } from '@orgmind/shared';
 import { WorkspaceNavigation } from './workspace-navigation';
 import { CollectionShareControl } from './collection-share-control';
+import { useFeedback } from './feedback-provider';
+import { watchDocumentProcessing } from './document-processing';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -53,10 +56,11 @@ export function KnowledgeBase({
   organizationName: string;
   role: MembershipRole;
 }) {
+  const { confirm, notify, updateToast } = useFeedback();
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState('');
   const [dragging, setDragging] = useState(false);
   const [collectionName, setCollectionName] = useState('default');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -98,8 +102,12 @@ export function KnowledgeBase({
   async function upload(file: File | undefined) {
     if (!file) return;
     setError('');
-    setNotice('');
     setBusy(true);
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Uploading document',
+      description: `${file.name} · Preparing upload…`,
+    });
     try {
       const form = new FormData();
       form.append('file', file);
@@ -122,10 +130,32 @@ export function KnowledgeBase({
             : undefined;
         throw new Error(message ?? 'Upload failed. Please try again.');
       }
-      setNotice(`${file.name} was uploaded and added to the processing queue.`);
-      await refreshDocuments();
+      const uploadPayload = payload as { document?: unknown };
+      const uploadedDocument = DocumentSummarySchema.parse(uploadPayload.document);
+      updateToast(toastId, {
+        kind: 'loading',
+        title: 'Processing your document',
+        description: `${file.name} · Added to the processing queue`,
+        persistent: true,
+        progress: uploadedDocument.progress ?? 0,
+      });
+      watchDocumentProcessing(organizationId, uploadedDocument.id, file.name, toastId, updateToast);
+      try {
+        await refreshDocuments();
+      } catch {
+        notify({
+          kind: 'info',
+          title: 'Upload accepted',
+          description: 'The document is processing. Refresh the Knowledge base to see its row.',
+        });
+      }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Upload failed. Please try again.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Upload failed',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = '';
@@ -133,17 +163,44 @@ export function KnowledgeBase({
   }
 
   async function removeDocument(document: DocumentSummary) {
-    if (!window.confirm(`Delete “${document.originalName}”?`)) return;
-    setError('');
-    const response = await fetch(
-      `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/documents/${encodeURIComponent(document.id)}`,
-      { method: 'DELETE', credentials: 'include' },
-    );
-    if (!response.ok) {
-      setError('Unable to delete this document. Please try again.');
+    if (
+      !(await confirm({
+        title: `Delete “${document.originalName}”?`,
+        message:
+          'This permanently removes the document and its searchable content from the workspace.',
+        confirmLabel: 'Delete document',
+      }))
+    )
       return;
+    setDeletingId(document.id);
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Deleting document',
+      description: `Removing ${document.originalName}…`,
+    });
+    try {
+      const response = await fetch(
+        `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/documents/${encodeURIComponent(document.id)}`,
+        { method: 'DELETE', credentials: 'include' },
+      );
+      if (!response.ok) throw new Error('Unable to delete this document. Please try again.');
+      setDocuments((current) => current.filter((item) => item.id !== document.id));
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Document deleted',
+        description: `${document.originalName} was removed from the workspace.`,
+        persistent: false,
+      });
+    } catch (cause) {
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not delete document',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
+    } finally {
+      setDeletingId('');
     }
-    setDocuments((current) => current.filter((item) => item.id !== document.id));
   }
 
   function onFileInput(event: ChangeEvent<HTMLInputElement>) {
@@ -220,11 +277,6 @@ export function KnowledgeBase({
         {error && (
           <p className="knowledge-message error" role="alert">
             {error}
-          </p>
-        )}
-        {notice && (
-          <p className="knowledge-message success" role="status">
-            {notice}
           </p>
         )}
 
@@ -329,6 +381,7 @@ export function KnowledgeBase({
                             className="document-delete"
                             type="button"
                             onClick={() => void removeDocument(document)}
+                            disabled={deletingId === document.id}
                             aria-label={`Delete ${document.originalName}`}
                           >
                             Delete

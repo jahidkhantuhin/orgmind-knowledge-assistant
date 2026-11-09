@@ -1,0 +1,321 @@
+.toast-viewport {
+  position: fixed;
+  z-index: 300;
+  top: max(18px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  display: grid;
+  width: min(390px, calc(100vw - 28px));
+  max-height: min(80vh, 680px);
+  gap: 10px;
+  overflow-y: auto;
+  align-content: start;
+  pointer-events: none;
+}
+.app-toast {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 28px;
+  align-items: start;
+  gap: 12px;
+  overflow: hidden;
+  padding: 14px 13px;
+  border: 1px solid color-mix(in srgb, var(--line) 70%, var(--accent));
+  border-radius: 16px;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent));
+  box-shadow:
+    0 18px 48px rgb(19 24 38 / 20%),
+    0 3px 10px rgb(19 24 38 / 8%);
+  backdrop-filter: blur(16px);
+  pointer-events: auto;
+  animation: toast-arrive 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.app-toast::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    var(--toast-color),
+    color-mix(in srgb, var(--toast-color) 25%, transparent)
+  );
+  content: '';
+}
+.toast-success {
+  --toast-color: #24a879;
+}
+.toast-error {
+  --toast-color: #df5968;
+}
+.toast-info {
+  --toast-color: #7667f2;
+}
+.toast-loading {
+  --toast-color: #8c78ff;
+}
+.toast-icon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--toast-color) 22%, transparent);
+  border-radius: 12px;
+  color: var(--toast-color);
+  background: color-mix(in srgb, var(--toast-color) 12%, var(--surface));
+  font-size: 20px;
+  font-weight: 800;
+}
+.toast-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding-top: 1px;
+}
+.toast-copy strong {
+  font-size: 13px;
+  line-height: 1.35;
+}
+.toast-copy > span:not(.toast-progress) {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.toast-dismiss {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+.toast-dismiss:hover {
+  color: var(--foreground);
+  background: var(--line);
+}
+.toast-spinner {
+  width: 17px;
+  height: 17px;
+  border: 2px solid color-mix(in srgb, var(--toast-color) 24%, transparent);
+  border-top-color: var(--toast-color);
+  border-radius: 50%;
+  animation: toast-spin 760ms linear infinite;
+}
+.toast-progress {
+  position: relative;
+  display: block;
+  height: 3px;
+  margin-top: 5px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--toast-color) 14%, var(--line));
+}
+.toast-progress::after {
+  position: absolute;
+  width: 38%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--toast-color), #b29cff);
+  animation: toast-progress 1.45s ease-in-out infinite;
+  content: '';
+}
+.toast-progress.is-determinate::after {
+  left: 0;
+  width: var(--toast-progress);
+  animation: none;
+}
+.app-dialog-backdrop {
+  position: fixed;
+  z-index: 400;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgb(8 12 20 / 58%);
+  backdrop-filter: blur(5px);
+  animation: dialog-fade-in 150ms ease-out both;
+}
+.app-dialog {
+  width: min(100%, 430px);
+  padding: 26px;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, var(--accent));
+  border-radius: 22px;
+  color: var(--foreground);
+  background: var(--surface);
+  box-shadow: 0 28px 90px rgb(0 0 0 / 36%);
+  animation: dialog-pop-in 190ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.dialog-symbol {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid rgb(220 83 102 / 20%);
+  border-radius: 15px;
+  color: #d84e62;
+  background: linear-gradient(145deg, #fff0f1, #ffe0e5);
+  font-size: 22px;
+  font-weight: 800;
+}
+.dialog-symbol-info {
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+.dialog-eyebrow {
+  margin: 19px 0 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+}
+.app-dialog h2 {
+  margin: 0;
+  font-size: 21px;
+  letter-spacing: -0.45px;
+}
+.dialog-message {
+  margin: 9px 0 21px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.dialog-input {
+  width: 100%;
+  min-height: 44px;
+  margin: -5px 0 20px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--foreground);
+  background: var(--background);
+  font: inherit;
+}
+.dialog-input:focus-visible,
+.app-dialog button:focus-visible,
+.toast-dismiss:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--accent) 44%, transparent);
+  outline-offset: 2px;
+}
+.app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+}
+.app-dialog-actions button {
+  min-height: 42px;
+  padding: 9px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.app-dialog-actions .secondary-button {
+  border-color: var(--line);
+  color: var(--foreground);
+  background: var(--background);
+}
+.dialog-danger-button {
+  border: 1px solid #d94f61;
+  color: #fff;
+  background: linear-gradient(135deg, #e45d6d, #c93f58);
+  box-shadow: 0 6px 16px rgb(201 63 88 / 22%);
+}
+.dialog-danger-button:hover {
+  background: linear-gradient(135deg, #d94f61, #b9324b);
+}
+.app-dialog-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dark .dialog-symbol:not(.dialog-symbol-info) {
+  border-color: rgb(255 119 137 / 18%);
+  color: #ff9daa;
+  background: linear-gradient(145deg, #3a222b, #2c1b24);
+}
+@keyframes toast-arrive {
+  from {
+    opacity: 0;
+    transform: translate3d(18px, -5px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+@keyframes toast-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes toast-progress {
+  from {
+    left: -40%;
+  }
+  to {
+    left: 105%;
+  }
+}
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes dialog-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@media (max-width: 600px) {
+  .toast-viewport {
+    top: auto;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(14px, env(safe-area-inset-bottom));
+    left: max(12px, env(safe-area-inset-left));
+    width: auto;
+  }
+  .app-toast {
+    grid-template-columns: 34px minmax(0, 1fr) 28px;
+    gap: 10px;
+    padding: 12px;
+  }
+  .toast-icon {
+    width: 34px;
+    height: 34px;
+  }
+  .app-dialog {
+    padding: 22px;
+    border-radius: 19px;
+  }
+  .app-dialog-actions {
+    flex-direction: column-reverse;
+  }
+  .app-dialog-actions button {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-toast,
+  .app-dialog-backdrop,
+  .app-dialog {
+    animation: none;
+  }
+  .toast-spinner,
+  .toast-progress::after {
+    animation-duration: 3s;
+  }
+}

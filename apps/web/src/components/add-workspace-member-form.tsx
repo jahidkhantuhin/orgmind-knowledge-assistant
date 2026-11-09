@@ -3,22 +3,25 @@
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { MembershipRoleSchema, type MembershipRole } from '@orgmind/shared';
+import { useFeedback } from './feedback-provider';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export function AddWorkspaceMemberForm({ organizationId }: { organizationId: string }) {
   const router = useRouter();
+  const { notify, updateToast } = useFeedback();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<MembershipRole>('viewer');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
-    setError('');
-    setNotice('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Adding workspace member',
+      description: `Adding ${email} as ${role}…`,
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/members`,
@@ -33,10 +36,20 @@ export function AddWorkspaceMemberForm({ organizationId }: { organizationId: str
       if (!response.ok)
         throw new Error(payload.error?.message ?? 'Could not add this workspace member.');
       setEmail('');
-      setNotice('Member added. You can now assign them to a group or share a folder with them.');
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Member added',
+        description: `${email} joined as ${role}.`,
+        persistent: false,
+      });
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not add this workspace member.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not add member',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -69,16 +82,6 @@ export function AddWorkspaceMemberForm({ organizationId }: { organizationId: str
       <button className="primary-button" type="submit" disabled={busy}>
         {busy ? 'Adding…' : 'Add member'}
       </button>
-      {error && (
-        <span className="knowledge-message error" role="alert">
-          {error}
-        </span>
-      )}
-      {notice && (
-        <span className="knowledge-message success" role="status">
-          {notice}
-        </span>
-      )}
     </form>
   );
 }

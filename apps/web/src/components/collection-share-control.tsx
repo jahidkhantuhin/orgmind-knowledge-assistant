@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useFeedback } from './feedback-provider';
 import {
   DocumentCollectionAccessResponseSchema,
   OrganizationMembersResponseSchema,
@@ -26,6 +27,7 @@ export function CollectionShareControl({
   documentName: string;
   acl: string[];
 }) {
+  const { notify, updateToast } = useFeedback();
   const [open, setOpen] = useState(false);
   const [members, setMembers] = useState<OrganizationMember[]>([]);
   const [groups, setGroups] = useState<TeamGroup[]>([]);
@@ -42,7 +44,6 @@ export function CollectionShareControl({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [scope, setScope] = useState<'document' | 'folder'>('folder');
   function selectAccess(tokens: string[]) {
     setRoles(allRoles.filter((role) => tokens.includes(`role:${role}`)));
@@ -91,6 +92,11 @@ export function CollectionShareControl({
   async function save() {
     setBusy(true);
     setError('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Saving access settings',
+      description: `Updating who can access ${scope === 'folder' ? `the “${collectionId}” folder` : documentName}…`,
+    });
     try {
       const path =
         scope === 'document'
@@ -110,14 +116,24 @@ export function CollectionShareControl({
         },
       );
       if (!response.ok) throw new Error('Could not update folder access. Please try again.');
-      setNotice(
-        scope === 'folder'
-          ? `Access updated for the “${collectionId}” folder.`
-          : 'Document access updated.',
-      );
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Access settings saved',
+        description:
+          scope === 'folder'
+            ? `Updated access for the “${collectionId}” folder.`
+            : `Updated access for ${documentName}.`,
+        persistent: false,
+      });
       setOpen(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not update folder access.');
+      const message = cause instanceof Error ? cause.message : 'Could not update folder access.';
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not save access settings',
+        description: message,
+        persistent: false,
+      });
     } finally {
       setBusy(false);
     }
@@ -142,11 +158,6 @@ export function CollectionShareControl({
       >
         Share
       </button>
-      {notice && (
-        <span className="share-notice" role="status">
-          {notice}
-        </span>
-      )}
       {open && (
         <div
           className="share-overlay"

@@ -15,6 +15,7 @@ import {
   type MembershipRole,
 } from '@orgmind/shared';
 import { WorkspaceNavigation } from './workspace-navigation';
+import { useFeedback } from './feedback-provider';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 type OrgMindMessage = {
@@ -60,6 +61,7 @@ export function ChatWorkspace({
   organizationName: string;
   role: MembershipRole;
 }) {
+  const { confirm, notify, prompt, updateToast } = useFeedback();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -96,6 +98,11 @@ export function ChatWorkspace({
 
   async function createConversation() {
     setError('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Starting conversation',
+      description: 'Opening a fresh thread…',
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/chat/conversations`,
@@ -113,47 +120,108 @@ export function ChatWorkspace({
       );
       setConversations((current) => [conversation, ...current]);
       setSelectedId(conversation.id);
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Conversation started',
+        description: 'Ask a question about your workspace knowledge.',
+        persistent: false,
+      });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not start a conversation.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not start conversation',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     }
   }
 
   async function renameConversation(conversation: ConversationSummary) {
-    const title = window.prompt('Conversation name', conversation.title)?.trim();
+    const title = await prompt({
+      title: 'Rename conversation',
+      message: 'Give this thread a name that will be easy to find later.',
+      initialValue: conversation.title,
+      placeholder: 'Conversation name',
+      confirmLabel: 'Save name',
+      danger: false,
+    });
     if (!title || title === conversation.title) return;
-    const response = await fetch(
-      `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/chat/conversations/${encodeURIComponent(conversation.id)}`,
-      {
-        method: 'PATCH',
-        credentials: 'include',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ title }),
-      },
-    );
-    if (!response.ok) {
-      setError('Could not rename this conversation.');
-      return;
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Renaming conversation',
+      description: `Saving “${title}”…`,
+    });
+    try {
+      const response = await fetch(
+        `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/chat/conversations/${encodeURIComponent(conversation.id)}`,
+        {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ title }),
+        },
+      );
+      if (!response.ok) throw new Error('Could not rename this conversation.');
+      const payload: unknown = await response.json();
+      const updated = ConversationSummarySchema.parse(
+        (payload as { conversation: unknown }).conversation,
+      );
+      setConversations((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Conversation renamed',
+        description: `Saved as “${updated.title}”.`,
+        persistent: false,
+      });
+    } catch (cause) {
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not rename conversation',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     }
-    const payload: unknown = await response.json();
-    const updated = ConversationSummarySchema.parse(
-      (payload as { conversation: unknown }).conversation,
-    );
-    setConversations((current) => current.map((item) => (item.id === updated.id ? updated : item)));
   }
 
   async function deleteConversation(conversation: ConversationSummary) {
-    if (!window.confirm(`Delete “${conversation.title}” and its messages?`)) return;
-    const response = await fetch(
-      `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/chat/conversations/${encodeURIComponent(conversation.id)}`,
-      { method: 'DELETE', credentials: 'include' },
-    );
-    if (!response.ok) {
-      setError('Could not delete this conversation.');
+    if (
+      !(await confirm({
+        title: `Delete “${conversation.title}”?`,
+        message: 'This conversation and its messages will be permanently removed.',
+        confirmLabel: 'Delete conversation',
+      }))
+    )
       return;
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Deleting conversation',
+      description: `Removing “${conversation.title}”…`,
+    });
+    try {
+      const response = await fetch(
+        `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/chat/conversations/${encodeURIComponent(conversation.id)}`,
+        { method: 'DELETE', credentials: 'include' },
+      );
+      if (!response.ok) throw new Error('Could not delete this conversation.');
+      const remaining = conversations.filter((item) => item.id !== conversation.id);
+      setConversations(remaining);
+      if (selectedId === conversation.id) setSelectedId(remaining[0]?.id ?? '');
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Conversation deleted',
+        description: `“${conversation.title}” was removed.`,
+        persistent: false,
+      });
+    } catch (cause) {
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not delete conversation',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     }
-    const remaining = conversations.filter((item) => item.id !== conversation.id);
-    setConversations(remaining);
-    if (selectedId === conversation.id) setSelectedId(remaining[0]?.id ?? '');
   }
 
   const currentConversation = conversations.find((item) => item.id === selectedId);
@@ -262,6 +330,7 @@ function ChatThread({
   organizationId: string;
   onUpdated: () => void;
 }) {
+  const { dismissToast, notify, updateToast } = useFeedback();
   const [input, setInput] = useState('');
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState('');
@@ -318,6 +387,11 @@ function ChatThread({
     };
     const controller = new AbortController();
     activeRequest.current = controller;
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Searching your workspace',
+      description: 'Finding relevant passages and preparing an answer…',
+    });
     setMessages((current) => [...current, userMessage, assistantMessage]);
     setStatus('streaming');
     setStreamError('');
@@ -364,6 +438,7 @@ function ChatThread({
       let streamedCitations: ChatCitation[] = [];
       let streamedRetrievalDebug: RetrievalDebugChunk[] = [];
       let citationsFinalized = false;
+      let streamFailed = false;
       let done = false;
       while (!done) {
         const result = await reader.read();
@@ -422,7 +497,14 @@ function ChatThread({
               }),
             );
           } else if (part.type === 'error' && typeof part.errorText === 'string') {
+            streamFailed = true;
             setStreamError(part.errorText);
+            updateToast(toastId, {
+              kind: 'error',
+              title: 'Could not finish answer',
+              description: part.errorText,
+              persistent: false,
+            });
             setSelectedCitation(null);
             setMessages((current) =>
               current.map((message) =>
@@ -463,9 +545,25 @@ function ChatThread({
         }
         done = result.done;
       }
+      if (!streamFailed) {
+        updateToast(toastId, {
+          kind: 'success',
+          title: 'Answer ready',
+          description: 'Your response is ready in this conversation.',
+          persistent: false,
+        });
+      }
       onUpdated();
     } catch (cause) {
-      if (!(cause instanceof DOMException && cause.name === 'AbortError')) {
+      if (cause instanceof DOMException && cause.name === 'AbortError') {
+        dismissToast(toastId);
+      } else {
+        updateToast(toastId, {
+          kind: 'error',
+          title: 'Could not generate an answer',
+          description: cause instanceof Error ? cause.message : 'Please try again.',
+          persistent: false,
+        });
         setStreamError(cause instanceof Error ? cause.message : 'Could not generate an answer.');
         setMessages((current) => current.filter((message) => message.id !== localAssistantId));
       }

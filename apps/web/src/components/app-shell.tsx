@@ -8,10 +8,11 @@ import { ApiStatus } from './api-status';
 import { ThemeToggle } from './theme-toggle';
 import type { AuthMeResponse } from '@orgmind/shared';
 import { SignOutButton } from './sign-out-button';
+import { useFeedback } from './feedback-provider';
 
 function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
   const router = useRouter();
-  const [workspaceError, setWorkspaceError] = useState('');
+  const { notify, updateToast } = useFeedback();
   const organization = currentUser.organizations[0];
   const firstName = currentUser.user.name.trim().split(/\s+/)[0] || currentUser.user.name;
   const initials = currentUser.user.name
@@ -22,18 +23,35 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
     .join('');
 
   async function switchWorkspace(organizationId: string) {
-    setWorkspaceError('');
-    const response = await fetch('/api/workspace', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ organizationId }),
+    const target = currentUser.organizations.find((item) => item.organizationId === organizationId);
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Switching workspace',
+      description: `Opening ${target?.organizationName ?? 'your workspace'}…`,
     });
-    if (!response.ok) {
-      setWorkspaceError('Could not switch workspace.');
-      return;
+    try {
+      const response = await fetch('/api/workspace', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ organizationId }),
+      });
+      if (!response.ok) throw new Error('Could not switch workspace. Please try again.');
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Workspace switched',
+        description: `You’re now in ${target?.organizationName ?? 'your workspace'}.`,
+        persistent: false,
+      });
+      router.push('/');
+      router.refresh();
+    } catch (cause) {
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not switch workspace',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     }
-    router.push('/');
-    router.refresh();
   }
   return (
     <div className="shell">
@@ -58,7 +76,6 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
                 </option>
               ))}
             </select>
-            {workspaceError && <small role="alert">{workspaceError}</small>}
           </label>
         ) : (
           <div className="workspace-label">{organization?.organizationName ?? 'WORKSPACE'}</div>

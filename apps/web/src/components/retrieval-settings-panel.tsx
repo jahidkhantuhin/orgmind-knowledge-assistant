@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { RetrievalSettingsResponseSchema, type RetrievalSettingsResponse } from '@orgmind/shared';
+import { useFeedback } from './feedback-provider';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -12,15 +13,19 @@ export function RetrievalSettingsPanel({
   organizationId: string;
   initialSettings: RetrievalSettingsResponse;
 }) {
+  const { notify, updateToast } = useFeedback();
   const [settings, setSettings] = useState(initialSettings);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
 
   async function update(
     next: Pick<RetrievalSettingsResponse, 'rerankingEnabled' | 'queryRewriteEnabled'>,
   ) {
     setSaving(true);
-    setError('');
+    const toastId = notify({
+      kind: 'loading',
+      title: 'Saving retrieval settings',
+      description: 'Applying your assistant search preferences…',
+    });
     try {
       const response = await fetch(
         `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/chat/retrieval-settings`,
@@ -49,8 +54,20 @@ export function RetrievalSettingsPanel({
         throw new Error(message);
       }
       setSettings(RetrievalSettingsResponseSchema.parse(payload));
+      updateToast(toastId, {
+        kind: 'success',
+        title: 'Retrieval settings saved',
+        description: 'Your assistant will use these settings on the next question.',
+        persistent: false,
+      });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save retrieval settings.');
+      const message = cause instanceof Error ? cause.message : 'Could not save retrieval settings.';
+      updateToast(toastId, {
+        kind: 'error',
+        title: 'Could not save settings',
+        description: message,
+        persistent: false,
+      });
     } finally {
       setSaving(false);
     }
@@ -95,11 +112,6 @@ export function RetrievalSettingsPanel({
           }
         />
       </div>
-      {error && (
-        <p className="retrieval-settings-error" role="alert">
-          {error}
-        </p>
-      )}
       {saving && (
         <p className="retrieval-settings-status" role="status">
           Saving…

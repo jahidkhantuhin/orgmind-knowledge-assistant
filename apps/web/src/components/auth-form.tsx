@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
+import { useFeedback } from './feedback-provider';
 import {
   LoginSchema,
   RegisterSchema,
@@ -14,6 +15,7 @@ const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export function AuthForm({ mode, inviteCode = '' }: AuthFormProps) {
   const router = useRouter();
+  const { notify, updateToast } = useFeedback();
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
   const [workspaceMode, setWorkspaceMode] = useState<'create' | 'join'>(
@@ -85,6 +87,15 @@ export function AuthForm({ mode, inviteCode = '' }: AuthFormProps) {
     }
 
     setPending(true);
+    const toastId = notify({
+      kind: 'loading',
+      title: isRegister ? 'Creating your account' : 'Signing you in',
+      description: isRegister
+        ? workspaceMode === 'create'
+          ? 'Setting up your workspace…'
+          : 'Joining your invited workspace…'
+        : 'Checking your account…',
+    });
     try {
       const response = await fetch(`${apiUrl}/auth/${mode}`, {
         method: 'POST',
@@ -100,10 +111,23 @@ export function AuthForm({ mode, inviteCode = '' }: AuthFormProps) {
             : undefined;
         throw new Error(message ?? 'Unable to sign in. Please try again.');
       }
+      updateToast(toastId, {
+        kind: 'success',
+        title: isRegister ? 'You’re all set' : 'Welcome back',
+        description: isRegister
+          ? 'Your OrgMind workspace is ready.'
+          : 'You’re signed in to OrgMind.',
+        persistent: false,
+      });
       router.replace('/');
       router.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to sign in. Please try again.');
+      updateToast(toastId, {
+        kind: 'error',
+        title: isRegister ? 'Could not create account' : 'Could not sign in',
+        description: cause instanceof Error ? cause.message : 'Please try again.',
+        persistent: false,
+      });
     } finally {
       setPending(false);
     }
