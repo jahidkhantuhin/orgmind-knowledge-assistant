@@ -7,6 +7,7 @@ import {
   OrganizationMembersResponseSchema,
   type MembershipRole,
   type OrganizationMember,
+  type WorkspaceInvitationSummary,
 } from '@orgmind/shared';
 import { useFeedback } from './feedback-provider';
 
@@ -16,10 +17,12 @@ export function OrganizationMembersTable({
   organizationId,
   members,
   onMembersUpdated,
+  onInvitationsUpdated,
 }: {
   organizationId: string;
   members: OrganizationMember[];
   onMembersUpdated: (_updatedMembers: OrganizationMember[]) => void;
+  onInvitationsUpdated: (_updatedInvitations: WorkspaceInvitationSummary[]) => void;
 }) {
   const router = useRouter();
   const { confirm, notify, updateToast } = useFeedback();
@@ -48,12 +51,13 @@ export function OrganizationMembersTable({
             : undefined;
         throw new Error(message ?? 'Could not refresh workspace members.');
       }
-      const updatedMembers = OrganizationMembersResponseSchema.parse(payload).members;
-      onMembersUpdated(updatedMembers);
+      const updatedWorkspace = OrganizationMembersResponseSchema.parse(payload);
+      onMembersUpdated(updatedWorkspace.members);
+      onInvitationsUpdated(updatedWorkspace.invitations);
       updateToast(toastId, {
         kind: 'success',
         title: 'Members refreshed',
-        description: `${updatedMembers.length} ${updatedMembers.length === 1 ? 'person' : 'people'} in this workspace.`,
+        description: `${updatedWorkspace.members.length} ${updatedWorkspace.members.length === 1 ? 'person' : 'people'} and ${updatedWorkspace.invitations.length} pending ${updatedWorkspace.invitations.length === 1 ? 'invitation' : 'invitations'}.`,
         persistent: false,
       });
     } catch (cause) {

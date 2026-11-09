@@ -9,7 +9,6 @@ import { WorkspaceNavigation } from '../../../components/workspace-navigation';
 import { RetrievalSettingsPanel } from '../../../components/retrieval-settings-panel';
 import { getCurrentUser } from '../../../lib/current-user';
 import { AddWorkspaceMemberForm } from '../../../components/add-workspace-member-form';
-import { WorkspaceInvitationsPanel } from '../../../components/workspace-invitations-panel';
 import { WorkspaceMembersManager } from '../../../components/workspace-members-manager';
 
 const apiUrl =
@@ -27,7 +26,7 @@ export default async function MembersPage() {
     { headers: { cookie }, cache: 'no-store' },
   );
   if (!response.ok) throw new Error('Unable to load organization members.');
-  const { members } = OrganizationMembersResponseSchema.parse(await response.json());
+  const { members, invitations } = OrganizationMembersResponseSchema.parse(await response.json());
   const groupsResponse = await fetch(
     `${apiUrl}/organizations/${encodeURIComponent(organization.organizationId)}/groups`,
     { headers: { cookie }, cache: 'no-store' },
@@ -53,11 +52,11 @@ export default async function MembersPage() {
           invitations.
         </p>
         <AddWorkspaceMemberForm organizationId={organization.organizationId} />
-        <WorkspaceInvitationsPanel organizationId={organization.organizationId} />
         <WorkspaceMembersManager
           key={JSON.stringify(members)}
           organizationId={organization.organizationId}
           initialMembers={members}
+          initialInvitations={invitations}
           initialGroups={groups}
         />
         <RetrievalSettingsPanel

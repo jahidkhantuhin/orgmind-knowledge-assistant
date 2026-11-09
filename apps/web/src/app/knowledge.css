@@ -773,6 +773,23 @@
   color: #71809b;
   font-size: 11px;
 }
+.workspace-invitation-item {
+  display: grid;
+  gap: 5px;
+}
+.workspace-invitation-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.workspace-invitation-actions button {
+  white-space: nowrap;
+}
+.workspace-invite-link-fallback {
+  padding: 0 0 10px;
+}
 .dark .team-group-create select {
   border-color: #394252;
   color: #e3e8f1;
@@ -932,6 +949,14 @@
     flex-direction: column;
   }
   .workspace-invite-link input {
+    width: 100%;
+  }
+  .workspace-invitation-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .workspace-invitation-actions {
+    justify-content: flex-end;
     width: 100%;
   }
   .knowledge-topbar {

@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   CreateWorkspaceInvitationResponseSchema,
-  WorkspaceInvitationsResponseSchema,
   type MembershipRole,
   type WorkspaceInvitationSummary,
 } from '@orgmind/shared';
@@ -11,44 +10,33 @@ import { useFeedback } from './feedback-provider';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
-export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: string }) {
+export function WorkspaceInvitationsPanel({
+  organizationId,
+  invitations,
+  onInvitationsUpdated,
+}: {
+  organizationId: string;
+  invitations: WorkspaceInvitationSummary[];
+  onInvitationsUpdated: (_invitations: WorkspaceInvitationSummary[]) => void;
+}) {
   const { confirm, notify, updateToast } = useFeedback();
-  const [invitations, setInvitations] = useState<WorkspaceInvitationSummary[]>([]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<MembershipRole>('viewer');
-  const [inviteLink, setInviteLink] = useState('');
+  const [manualCopyLinks, setManualCopyLinks] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void fetch(`${apiUrl}/organizations/${encodeURIComponent(organizationId)}/invitations`, {
-      credentials: 'include',
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        const payload: unknown = await response.json();
-        if (!response.ok) throw new Error('Could not load invitations.');
-        setInvitations(WorkspaceInvitationsResponseSchema.parse(payload).invitations);
-      })
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) {
-          setError(cause instanceof Error ? cause.message : 'Could not load invitations.');
-        }
-      });
-    return () => controller.abort();
-  }, [organizationId]);
-
-  async function createInvitation(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function issueInvitation(
+    targetEmail: string,
+    targetRole: MembershipRole,
+    clearForm = false,
+  ) {
     setPending(true);
     setError('');
-    setInviteLink('');
     const toastId = notify({
       kind: 'loading',
       title: 'Creating invitation',
-      description: `Preparing a ${role} invite for ${email}…`,
+      description: `Preparing a ${targetRole} invite for ${targetEmail}…`,
     });
     try {
       const response = await fetch(
@@ -57,7 +45,7 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
           method: 'POST',
           credentials: 'include',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ email, role }),
+          body: JSON.stringify({ email: targetEmail, role: targetRole }),
         },
       );
       const payload: unknown = await response.json();
@@ -71,18 +59,40 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
       const created = CreateWorkspaceInvitationResponseSchema.parse(payload);
       const link = new URL('/register', window.location.origin);
       link.searchParams.set('invite', created.code);
-      setInviteLink(link.toString());
-      setInvitations((current) => [
+      const replacedInvitationIds = invitations
+        .filter((item) => item.email === created.invitation.email)
+        .map((item) => item.id);
+      onInvitationsUpdated([
         created.invitation,
-        ...current.filter((item) => item.email !== created.invitation.email),
+        ...invitations.filter((item) => item.email !== created.invitation.email),
       ]);
-      updateToast(toastId, {
-        kind: 'success',
-        title: 'Invitation ready',
-        description: `Share the private link with ${created.invitation.email}. It expires in 7 days.`,
-        persistent: false,
+      setManualCopyLinks((current) => {
+        const next = { ...current };
+        replacedInvitationIds.forEach((id) => delete next[id]);
+        return next;
       });
-      setEmail('');
+      try {
+        await navigator.clipboard.writeText(link.toString());
+        updateToast(toastId, {
+          kind: 'success',
+          title: 'Invitation link copied',
+          description: `Share the link with ${created.invitation.email}. It expires in 7 days.`,
+          persistent: false,
+        });
+      } catch {
+        setManualCopyLinks((current) => ({
+          ...current,
+          [created.invitation.id]: link.toString(),
+        }));
+        updateToast(toastId, {
+          kind: 'error',
+          title: 'Invitation created; copy it manually',
+          description:
+            'The browser blocked clipboard access. Select the link shown in the invitation row.',
+          persistent: false,
+        });
+      }
+      if (clearForm) setEmail('');
     } catch (cause) {
       updateToast(toastId, {
         kind: 'error',
@@ -93,6 +103,23 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
     } finally {
       setPending(false);
     }
+  }
+
+  function createInvitation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void issueInvitation(email.trim().toLowerCase(), role, true);
+  }
+
+  async function recreateInvitation(invitation: WorkspaceInvitationSummary) {
+    if (
+      !(await confirm({
+        title: 'Create a replacement link?',
+        message: `The current link for ${invitation.email} will stop working when the replacement is created.`,
+        confirmLabel: 'Create replacement',
+      }))
+    )
+      return;
+    void issueInvitation(invitation.email, invitation.role);
   }
 
   async function revokeInvitation(invitationId: string) {
@@ -117,8 +144,12 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
         { method: 'DELETE', credentials: 'include' },
       );
       if (!response.ok) throw new Error('Could not revoke this invitation.');
-      setInvitations((current) => current.filter((item) => item.id !== invitationId));
-      setInviteLink('');
+      onInvitationsUpdated(invitations.filter((item) => item.id !== invitationId));
+      setManualCopyLinks((current) => {
+        const next = { ...current };
+        delete next[invitationId];
+        return next;
+      });
       updateToast(toastId, {
         kind: 'success',
         title: 'Invitation revoked',
@@ -131,19 +162,6 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
         title: 'Could not revoke invitation',
         description: cause instanceof Error ? cause.message : 'Please try again.',
         persistent: false,
-      });
-    }
-  }
-
-  async function copyLink() {
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      notify({ kind: 'success', title: 'Invite link copied', description: 'It’s ready to share.' });
-    } catch {
-      notify({
-        kind: 'error',
-        title: 'Could not copy link',
-        description: 'Select and copy the invitation link below.',
       });
     }
   }
@@ -182,22 +200,6 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
           {pending ? 'Creating…' : 'Create invite'}
         </button>
       </form>
-      {inviteLink && (
-        <div className="workspace-invite-link">
-          <label htmlFor="created-invite-link">Share this link with {invitations[0]?.email}</label>
-          <div>
-            <input
-              id="created-invite-link"
-              readOnly
-              value={inviteLink}
-              onFocus={(event) => event.target.select()}
-            />
-            <button className="secondary-button" type="button" onClick={() => void copyLink()}>
-              Copy link
-            </button>
-          </div>
-        </div>
-      )}
       {error && (
         <p className="workspace-invitation-error" role="alert">
           {error}
@@ -207,20 +209,45 @@ export function WorkspaceInvitationsPanel({ organizationId }: { organizationId: 
         <div className="workspace-invitation-list">
           <strong>Pending invitations</strong>
           {invitations.map((invitation) => (
-            <div className="workspace-invitation-row" key={invitation.id}>
-              <span>
-                <strong>{invitation.email}</strong>
-                <small>
-                  {invitation.role} · expires {new Date(invitation.expiresAt).toLocaleDateString()}
-                </small>
-              </span>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => void revokeInvitation(invitation.id)}
-              >
-                Revoke
-              </button>
+            <div className="workspace-invitation-item" key={invitation.id}>
+              <div className="workspace-invitation-row">
+                <span>
+                  <strong>{invitation.email}</strong>
+                  <small>
+                    {invitation.role} · expires{' '}
+                    {new Date(invitation.expiresAt).toLocaleDateString()}
+                  </small>
+                </span>
+                <div className="workspace-invitation-actions">
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={pending}
+                    onClick={() => void recreateInvitation(invitation)}
+                  >
+                    Recreate &amp; copy
+                  </button>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={pending}
+                    onClick={() => void revokeInvitation(invitation.id)}
+                  >
+                    Revoke
+                  </button>
+                </div>
+              </div>
+              {manualCopyLinks[invitation.id] && (
+                <div className="workspace-invite-link workspace-invite-link-fallback">
+                  <label htmlFor={`invite-link-${invitation.id}`}>Select and copy this link</label>
+                  <input
+                    id={`invite-link-${invitation.id}`}
+                    readOnly
+                    value={manualCopyLinks[invitation.id]}
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>

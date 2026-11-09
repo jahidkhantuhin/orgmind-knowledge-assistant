@@ -141,6 +141,7 @@ export type OrganizationMember = z.infer<typeof OrganizationMemberSchema>;
 
 export const OrganizationMembersResponseSchema = z.object({
   members: z.array(OrganizationMemberSchema),
+  invitations: z.array(WorkspaceInvitationSummarySchema),
 });
 export type OrganizationMembersResponse = z.infer<typeof OrganizationMembersResponseSchema>;
 

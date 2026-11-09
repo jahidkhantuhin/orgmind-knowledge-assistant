@@ -28,7 +28,22 @@ export const listMembersController: RequestHandler = async (req, res) => {
       .json({ error: { code: 'INVALID_ORGANIZATION', message: 'Organization is required.' } });
     return;
   }
-  res.json({ members: await listOrganizationMembers(organizationId) });
+  const [members, invitations] = await Promise.all([
+    listOrganizationMembers(organizationId),
+    workspaceInvitationsRepository.listPending(organizationId),
+  ]);
+  res.json({
+    members,
+    invitations: invitations.map((invitation) =>
+      WorkspaceInvitationSummarySchema.parse({
+        id: invitation._id,
+        email: invitation.email,
+        role: invitation.role,
+        createdAt: invitation.createdAt.toISOString(),
+        expiresAt: invitation.expiresAt.toISOString(),
+      }),
+    ),
+  });
 };
 
 export const addOrganizationMemberController: RequestHandler = async (req, res) => {
