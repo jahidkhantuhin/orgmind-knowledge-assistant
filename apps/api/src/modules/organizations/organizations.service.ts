@@ -57,6 +57,7 @@ export async function listOrganizationMembers(
         name: user.name,
         email: user.email,
         role: membership.role,
+        groupIds: membership.groupIds,
         joinedAt: membership.createdAt.toISOString(),
       }),
     ];
