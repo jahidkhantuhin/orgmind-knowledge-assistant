@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { OrganizationMember } from '@orgmind/shared';
+import {
+  MembershipRoleSchema,
+  type MembershipRole,
+  type OrganizationMember,
+} from '@orgmind/shared';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -17,6 +21,53 @@ export function OrganizationMembersTable({
   const [members, setMembers] = useState(initialMembers);
   const [error, setError] = useState('');
   const [removingUserId, setRemovingUserId] = useState('');
+  const [savingRoleUserId, setSavingRoleUserId] = useState('');
+  const [selectedRoles, setSelectedRoles] = useState<Record<string, MembershipRole>>({});
+
+  function selectedRole(member: OrganizationMember): MembershipRole {
+    return selectedRoles[member.userId] ?? member.role;
+  }
+
+  async function updateMemberRole(member: OrganizationMember) {
+    const role = selectedRole(member);
+    if (role === member.role) return;
+    setError('');
+    setSavingRoleUserId(member.userId);
+    try {
+      const response = await fetch(
+        `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/members/${encodeURIComponent(member.userId)}/role`,
+        {
+          method: 'PATCH',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role }),
+        },
+      );
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          typeof payload === 'object' && payload !== null && 'error' in payload
+            ? (payload.error as { message?: string }).message
+            : undefined;
+        throw new Error(message ?? 'Could not update this workspace member role.');
+      }
+      setMembers((current) =>
+        current.map((item) => (item.userId === member.userId ? { ...item, role } : item)),
+      );
+      setSelectedRoles((current) => {
+        const next = { ...current };
+        delete next[member.userId];
+        return next;
+      });
+      router.refresh();
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : 'Could not update this workspace member role.',
+      );
+    } finally {
+      setSavingRoleUserId('');
+    }
+  }
 
   async function removeMember(member: OrganizationMember) {
     if (!window.confirm(`Remove ${member.name} from this workspace?`)) return;
@@ -78,7 +129,33 @@ export function OrganizationMembersTable({
                     <small>{member.email}</small>
                   </td>
                   <td>
-                    <span className={`role-pill role-${member.role}`}>{member.role}</span>
+                    <span className="member-role-controls">
+                      <select
+                        aria-label={`Role for ${member.name}`}
+                        value={selectedRole(member)}
+                        disabled={savingRoleUserId === member.userId}
+                        onChange={(event) =>
+                          setSelectedRoles((current) => ({
+                            ...current,
+                            [member.userId]: MembershipRoleSchema.parse(event.target.value),
+                          }))
+                        }
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="member">Member</option>
+                        <option value="viewer">Viewer</option>
+                      </select>
+                      <button
+                        type="button"
+                        className="secondary-button member-role-save"
+                        disabled={
+                          savingRoleUserId === member.userId || selectedRole(member) === member.role
+                        }
+                        onClick={() => void updateMemberRole(member)}
+                      >
+                        {savingRoleUserId === member.userId ? 'Saving…' : 'Save role'}
+                      </button>
+                    </span>
                   </td>
                   <td>
                     {new Date(member.joinedAt).toLocaleDateString('en-US', {

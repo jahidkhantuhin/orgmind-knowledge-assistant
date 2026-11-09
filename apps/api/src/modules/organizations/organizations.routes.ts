@@ -8,6 +8,7 @@ import {
   addOrganizationMemberController,
   listMembersController,
   removeOrganizationMemberController,
+  updateOrganizationMemberRoleController,
   revokeWorkspaceInvitationController,
   listTeamGroupsController,
   updateMemberGroupsController,
@@ -57,6 +58,12 @@ organizationsRouter.delete(
   requireAuth,
   requireOrganizationRole(['admin']),
   removeOrganizationMemberController,
+);
+organizationsRouter.patch(
+  '/:organizationId/members/:userId/role',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  updateOrganizationMemberRoleController,
 );
 organizationsRouter.get(
   '/:organizationId/groups',

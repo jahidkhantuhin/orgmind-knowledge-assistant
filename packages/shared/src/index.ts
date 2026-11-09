@@ -149,6 +149,10 @@ export const AddOrganizationMemberSchema = z.object({
   role: MembershipRoleSchema,
 });
 
+export const UpdateOrganizationMemberRoleSchema = z.object({
+  role: MembershipRoleSchema,
+});
+
 export const UserDocumentSchema = z.object({
   id: z.string().optional(),
   _id: z.unknown().optional(),

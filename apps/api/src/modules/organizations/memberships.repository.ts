@@ -96,6 +96,43 @@ export const membershipsRepository = {
     return result.matchedCount === 1;
   },
 
+  async updateRoleForUserInOrganization(
+    organizationId: string,
+    userId: string,
+    role: MembershipRole,
+  ): Promise<'updated' | 'last_admin' | 'not_found'> {
+    const session = mongoClient.startSession();
+    let result: 'updated' | 'last_admin' | 'not_found' = 'not_found';
+    try {
+      await session.withTransaction(async () => {
+        const target = await memberships().findOne({ organizationId, userId }, { session });
+        if (!target) {
+          result = 'not_found';
+          return;
+        }
+        if (target.role === 'admin' && role !== 'admin') {
+          const adminCount = await memberships().countDocuments(
+            { organizationId, role: 'admin' },
+            { session },
+          );
+          if (adminCount <= 1) {
+            result = 'last_admin';
+            return;
+          }
+        }
+        await memberships().updateOne(
+          { organizationId, userId },
+          { $set: { role, updatedAt: new Date() } },
+          { session },
+        );
+        result = 'updated';
+      });
+      return result;
+    } finally {
+      await session.endSession();
+    }
+  },
+
   async removeFromOrganization(
     organizationId: string,
     userId: string,

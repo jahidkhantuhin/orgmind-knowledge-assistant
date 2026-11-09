@@ -284,6 +284,24 @@
   background: #fff5e5;
   color: #a87623;
 }
+.member-role-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.member-role-controls select {
+  min-height: 32px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--foreground);
+  background: var(--background);
+  font: inherit;
+}
+.member-role-save {
+  padding: 6px 8px;
+  font-size: 10px;
+}
 .dark .role-admin {
   background: #193a2b;
   color: #9ce0bd;

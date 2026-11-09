@@ -9,6 +9,7 @@ import {
   TeamGroupsResponseSchema,
   UpdateMemberGroupsSchema,
   WorkspaceInvitationSummarySchema,
+  UpdateOrganizationMemberRoleSchema,
 } from '@orgmind/shared';
 import { groupsRepository } from './groups.repository.js';
 import { membershipsRepository } from './memberships.repository.js';
@@ -98,6 +99,39 @@ export const removeOrganizationMemberController: RequestHandler = async (req, re
     return;
   }
   res.json({ success: true });
+};
+
+export const updateOrganizationMemberRoleController: RequestHandler = async (req, res) => {
+  const organizationId = req.membership?.organizationId;
+  const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
+  const input = UpdateOrganizationMemberRoleSchema.safeParse(req.body);
+  if (!organizationId || !userId || !input.success) {
+    res.status(400).json({
+      error: { code: 'INVALID_MEMBER_ROLE', message: 'Choose a valid workspace member role.' },
+    });
+    return;
+  }
+  const result = await membershipsRepository.updateRoleForUserInOrganization(
+    organizationId,
+    userId,
+    input.data.role,
+  );
+  if (result === 'not_found') {
+    res.status(404).json({
+      error: { code: 'MEMBER_NOT_FOUND', message: 'Workspace member not found.' },
+    });
+    return;
+  }
+  if (result === 'last_admin') {
+    res.status(409).json({
+      error: {
+        code: 'LAST_ADMIN',
+        message: 'Add another workspace admin before changing the only admin role.',
+      },
+    });
+    return;
+  }
+  res.json({ success: true, role: input.data.role });
 };
 
 export const listTeamGroupsController: RequestHandler = async (req, res) => {
