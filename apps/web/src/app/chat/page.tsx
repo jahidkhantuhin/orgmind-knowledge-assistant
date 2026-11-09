@@ -12,6 +12,7 @@ export default async function ChatPage() {
     <ChatWorkspace
       organizationId={organization.organizationId}
       organizationName={organization.organizationName}
+      role={organization.role}
     />
   );
 }

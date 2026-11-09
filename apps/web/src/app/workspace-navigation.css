@@ -1,0 +1,77 @@
+.workspace-navigation {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(12px, 3vw, 38px);
+  padding: 0 clamp(16px, 4vw, 48px);
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  backdrop-filter: blur(14px);
+}
+.workspace-navigation-brand {
+  padding: 0;
+  white-space: nowrap;
+}
+.workspace-navigation-links {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.workspace-navigation-links::-webkit-scrollbar {
+  display: none;
+}
+.workspace-navigation-link {
+  flex: 0 0 auto;
+  padding: 9px 12px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+.workspace-navigation-link:hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.workspace-navigation-link.is-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 11%, transparent);
+}
+.workspace-navigation-theme {
+  color: var(--muted);
+}
+@media (max-width: 700px) {
+  .workspace-navigation {
+    min-height: 94px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: 36px 34px;
+    gap: 5px 12px;
+    padding: 8px 14px;
+  }
+  .workspace-navigation-links {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-start;
+    margin: 0 -4px;
+    padding: 0 4px;
+  }
+  .workspace-navigation-link {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .workspace-navigation-theme {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}

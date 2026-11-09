@@ -7,7 +7,7 @@ import {
   type DocumentSummary,
   type MembershipRole,
 } from '@orgmind/shared';
-import { ThemeToggle } from './theme-toggle';
+import { WorkspaceNavigation } from './workspace-navigation';
 import { CollectionShareControl } from './collection-share-control';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
@@ -158,20 +158,7 @@ export function KnowledgeBase({
 
   return (
     <main className="knowledge-page">
-      <header className="knowledge-topbar">
-        <Link className="brand" href="/">
-          <span className="brand-mark">O</span>
-          <span>
-            orgmind<span className="brand-dot">.</span>
-          </span>
-        </Link>
-        <div className="knowledge-top-actions">
-          <ThemeToggle className="knowledge-theme-toggle" />
-          <Link className="knowledge-back" href="/">
-            ← Workspace
-          </Link>
-        </div>
-      </header>
+      <WorkspaceNavigation active="knowledge" role={role} />
       <section className="knowledge-content">
         <p className="eyebrow">{organizationName.toUpperCase()}</p>
         <div className="knowledge-heading">

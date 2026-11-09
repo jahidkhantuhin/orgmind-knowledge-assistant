@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @import './shell.css';
+@import './workspace-navigation.css';
 @import './auth.css';
 @import './knowledge.css';
 @import './chat.css';

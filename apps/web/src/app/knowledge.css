@@ -898,7 +898,16 @@
   border-color: #70404a;
 }
 @media (max-width: 640px) {
-  .team-group-admin-row,
+  .team-group-create > button {
+    margin-left: auto;
+  }
+  .team-group-admin-row {
+    align-items: center;
+  }
+  .team-group-admin-row > div {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
   .team-group-edit-form {
     align-items: stretch;
   }
@@ -907,6 +916,9 @@
   }
   .team-group-edit-form input {
     flex-basis: 100%;
+  }
+  .team-group-edit-form button:first-of-type {
+    margin-left: auto;
   }
   .team-group-member {
     align-items: flex-start;

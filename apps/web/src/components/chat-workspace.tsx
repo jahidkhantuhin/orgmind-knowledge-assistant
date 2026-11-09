@@ -12,8 +12,9 @@ import {
   type ChatCitation,
   type RetrievalDebugChunk,
   type ConversationSummary,
+  type MembershipRole,
 } from '@orgmind/shared';
-import { ThemeToggle } from './theme-toggle';
+import { WorkspaceNavigation } from './workspace-navigation';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 type OrgMindMessage = {
@@ -53,9 +54,11 @@ function toUiMessages(
 export function ChatWorkspace({
   organizationId,
   organizationName,
+  role,
 }: {
   organizationId: string;
   organizationName: string;
+  role: MembershipRole;
 }) {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [selectedId, setSelectedId] = useState('');
@@ -157,18 +160,7 @@ export function ChatWorkspace({
 
   return (
     <main className="chat-page">
-      <header className="chat-topbar">
-        <Link className="brand" href="/">
-          <span className="brand-mark">O</span>
-          <span>
-            orgmind<span className="brand-dot">.</span>
-          </span>
-        </Link>
-        <div className="chat-topbar-actions">
-          <ThemeToggle className="knowledge-theme-toggle" />
-          <Link href="/knowledge">Knowledge base</Link>
-        </div>
-      </header>
+      <WorkspaceNavigation active="assistant" role={role} />
       <div className="chat-layout">
         <aside className="chat-history" aria-label="Conversation history">
           <div className="chat-history-heading">
