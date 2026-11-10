@@ -22,7 +22,7 @@ export async function shutdownTelemetry(): Promise<void> {
 
 export async function withSpan<T>(
   name: string,
-  callback: (span: Span) => Promise<T>,
+  callback: (_span: Span) => Promise<T>,
   attributes: SpanOptions['attributes'] = {},
 ): Promise<T> {
   const tracer = trace.getTracer('orgmind-api');
