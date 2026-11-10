@@ -355,6 +355,36 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.chat-observability-debug {
+  margin-top: 8px;
+  border: 1px solid #dfe3ec;
+  border-radius: 10px;
+  color: #667085;
+  font-size: 11px;
+}
+.chat-observability-debug summary {
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.chat-observability-debug dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0 10px 10px;
+}
+.chat-observability-debug dl > div {
+  min-width: 0;
+}
+.chat-observability-debug dt {
+  color: #929aa8;
+}
+.chat-observability-debug dd {
+  overflow-wrap: anywhere;
+  margin: 2px 0 0;
+  color: inherit;
+}
 .chat-composer {
   flex: 0 0 auto;
   margin: 0 clamp(12px, 3vw, 38px) 20px;
@@ -584,6 +614,10 @@
   color: #c9bfff;
 }
 .dark .retrieval-debug {
+  border-color: #394252;
+  color: #aab4c4;
+}
+.dark .chat-observability-debug {
   border-color: #394252;
   color: #aab4c4;
 }

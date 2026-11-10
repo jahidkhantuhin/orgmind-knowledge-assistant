@@ -104,6 +104,9 @@ export async function runMigrations(): Promise<void> {
     workspaceInvitationsRepository.ensureIndexes(),
   );
   await applyMigration(migrations, '011-evaluation-runs', () => evalRunsRepository.ensureIndexes());
+  await applyMigration(migrations, '012-message-observability', () =>
+    chatRepository.ensureUsageIndex(),
+  );
 }
 
 async function applyMigration(

@@ -36,6 +36,9 @@ const EnvSchema = z
       .max(12 * 1024 * 1024)
       .default(3 * 1024 * 1024),
     GOOGLE_API_KEY: z.string().default(''),
+    OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default(''),
+    GEMINI_INPUT_COST_USD_PER_MILLION_TOKENS: z.coerce.number().min(0).default(0.3),
+    GEMINI_OUTPUT_COST_USD_PER_MILLION_TOKENS: z.coerce.number().min(0).default(2.5),
     CHAT_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
     CHAT_TOP_K: z.coerce.number().int().min(1).max(20).default(5),
     CHAT_MIN_RELEVANCE_SCORE: z.coerce.number().min(0).max(1).default(0.45),

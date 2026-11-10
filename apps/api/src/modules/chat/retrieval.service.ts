@@ -12,11 +12,15 @@ import { retrievalSettingsRepository } from '../organizations/retrieval-settings
 import { logger } from '../../lib/logger.js';
 import { queryRewritingService, type QueryRewriter } from './query-rewriting.service.js';
 import { reranker, type Reranker } from './reranker.service.js';
+import { withSpan } from '../../lib/telemetry.js';
+
+const now = () => performance.now();
 
 export type RetrievalResult = {
   citations: ChatCitation[];
   debug: RetrievalDebugChunk[];
   context: string;
+  latencyMs: { embedding: number; search: number; rerank: number; total: number };
 };
 
 type RankedCandidate = SimilarChunk & {
@@ -87,6 +91,7 @@ function createRetrievalService(dependencies: RetrievalDependencies) {
       organizationId: string,
       aclTokens: string[],
     ): Promise<RetrievalResult> {
+      const startedAt = now();
       const settings = await dependencies.getSettings?.(organizationId);
       let searchQuery = query;
       if (settings?.queryRewriteEnabled && dependencies.queryRewriter) {
@@ -104,18 +109,28 @@ function createRetrievalService(dependencies: RetrievalDependencies) {
       const candidateLimit = rerankingEnabled
         ? (dependencies.candidateCount ?? dependencies.limit)
         : dependencies.limit;
-      const vector = await dependencies.embed(searchQuery);
-      const results =
-        dependencies.strategy === 'hybrid' && dependencies.hybridSearch
-          ? await dependencies.hybridSearch(
-              searchQuery,
-              vector,
-              organizationId,
-              aclTokens,
-              candidateLimit,
-              dependencies.weights ?? { vector: 1, keyword: 1 },
-            )
-          : await dependencies.search(vector, organizationId, aclTokens, candidateLimit);
+      const embeddingStartedAt = now();
+      const vector = await withSpan('chat.embedding', () => dependencies.embed(searchQuery), {
+        'orgmind.embedding.model': env.EMBEDDING_MODEL,
+      });
+      const embeddingMs = now() - embeddingStartedAt;
+      const searchStartedAt = now();
+      const results = await withSpan(
+        'mongodb.search',
+        () =>
+          dependencies.strategy === 'hybrid' && dependencies.hybridSearch
+            ? dependencies.hybridSearch(
+                searchQuery,
+                vector,
+                organizationId,
+                aclTokens,
+                candidateLimit,
+                dependencies.weights ?? { vector: 1, keyword: 1 },
+              )
+            : dependencies.search(vector, organizationId, aclTokens, candidateLimit),
+        { 'orgmind.search.strategy': dependencies.strategy ?? 'vector' },
+      );
+      const searchMs = now() - searchStartedAt;
       const eligible =
         dependencies.strategy === 'hybrid'
           ? results
@@ -130,27 +145,41 @@ function createRetrievalService(dependencies: RetrievalDependencies) {
           fusedScore: result.score,
         },
       }));
+      const rerankStartedAt = now();
       if (rerankingEnabled && dependencies.reranker) {
-        try {
-          const reranked = await dependencies.reranker.rerank(searchQuery, ranked, ranked.length);
-          if (reranked.length > 0) {
-            const rerankedIds = new Set(reranked.map((result) => result._id));
-            const debugById = new Map(ranked.map((result) => [result._id, result.retrievalDebug]));
-            ranked = [
-              ...reranked.map((result) => ({
-                ...result,
-                retrievalDebug: result.retrievalDebug ?? debugById.get(result._id)!,
-              })),
-              ...ranked.filter((result) => !rerankedIds.has(result._id)),
-            ];
-          }
-        } catch (error) {
-          logger.warn(
-            { err: error, organizationId },
-            'Reranking failed; using fused search order.',
-          );
-        }
+        await withSpan(
+          'chat.rerank',
+          async () => {
+            try {
+              const reranked = await dependencies.reranker!.rerank(
+                searchQuery,
+                ranked,
+                ranked.length,
+              );
+              if (reranked.length > 0) {
+                const rerankedIds = new Set(reranked.map((result) => result._id));
+                const debugById = new Map(
+                  ranked.map((result) => [result._id, result.retrievalDebug]),
+                );
+                ranked = [
+                  ...reranked.map((result) => ({
+                    ...result,
+                    retrievalDebug: result.retrievalDebug ?? debugById.get(result._id)!,
+                  })),
+                  ...ranked.filter((result) => !rerankedIds.has(result._id)),
+                ];
+              }
+            } catch (error) {
+              logger.warn(
+                { err: error, organizationId },
+                'Reranking failed; using fused search order.',
+              );
+            }
+          },
+          { 'orgmind.rerank.enabled': true, 'orgmind.rerank.candidates': ranked.length },
+        );
       }
+      const rerankMs = rerankingEnabled ? now() - rerankStartedAt : 0;
       const selected = ranked.slice(0, dependencies.limit);
       const documentIds = [...new Set(ranked.map((result) => result.documentId))];
       const documents = await dependencies.findDocuments(documentIds, organizationId);
@@ -194,6 +223,12 @@ function createRetrievalService(dependencies: RetrievalDependencies) {
       return {
         citations,
         debug,
+        latencyMs: {
+          embedding: embeddingMs,
+          search: searchMs,
+          rerank: rerankMs,
+          total: now() - startedAt,
+        },
         context: citations
           .map(
             (citation, index) =>

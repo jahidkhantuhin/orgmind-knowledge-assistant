@@ -2,7 +2,7 @@ import Link from 'next/link';
 import type { MembershipRole } from '@orgmind/shared';
 import { ThemeToggle } from './theme-toggle';
 
-type WorkspaceSection = 'assistant' | 'knowledge' | 'members' | 'evals';
+type WorkspaceSection = 'assistant' | 'knowledge' | 'members' | 'evals' | 'usage';
 
 export function WorkspaceNavigation({
   active,
@@ -19,6 +19,7 @@ export function WorkspaceNavigation({
       ? [
           { href: '/settings/members', label: 'Members', section: 'members' as const },
           { href: '/settings/evals', label: 'Evals', section: 'evals' as const },
+          { href: '/settings/usage', label: 'Usage', section: 'usage' as const },
         ]
       : []),
   ];

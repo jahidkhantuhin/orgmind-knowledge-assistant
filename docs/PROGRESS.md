@@ -89,3 +89,11 @@
 - Added a deterministic `pnpm eval:smoke` CI job with a recall regression threshold. It does not call Google or Cohere services.
 - Added `EVAL_ORGANIZATION_ID`, `EVAL_MIN_RECALL_AT_K`, `EVAL_MAX_RERANK_RECALL_DROP`, and `EVAL_GEMINI_REQUEST_INTERVAL_MS` to `.env.example`; README documents setup, provider quota impact, reports, comparison strategies, metric meanings, and what the pass badge checks.
 - Added a dedicated README explanation of the development Retrieval debug table: vector, keyword, fused, and rerank ranks/scores; how to interpret missing values; and why scores across search systems are not directly comparable.
+
+## Step 10: Chat observability and workspace usage
+
+- Added OpenTelemetry API, Node SDK, and OTLP/HTTP trace exporter instrumentation for chat request, embedding, MongoDB search, reranking, and generation stages. Trace exporting is optional and disabled when `OTEL_EXPORTER_OTLP_ENDPOINT` is empty.
+- Added an optional OpenTelemetry Collector to the Docker Compose `app` profile with an OTLP/HTTP receiver and debug trace exporter. The regular host-based app workflow can send to `http://localhost:4318` when the collector is started separately.
+- Persisted assistant message model ID, input/output/total tokens, estimated cost, trace ID when available, and latency for retrieval, embedding, MongoDB Search, reranking, generation, and end-to-end response. Migration `012-message-observability` adds the workspace/date usage index; old messages remain valid and are not counted if they have no metadata.
+- Added a development-only **Usage & performance** drawer per assistant answer and an admin-only **Usage** dashboard with 30-day workspace totals, daily request/token charts, estimated costs, and average stage timings.
+- Added `OTEL_EXPORTER_OTLP_ENDPOINT`, `GEMINI_INPUT_COST_USD_PER_MILLION_TOKENS` (default `0.3`), and `GEMINI_OUTPUT_COST_USD_PER_MILLION_TOKENS` (default `2.5`) to `.env.example`. Estimated cost uses configured paid-list rates, not actual billing; free-tier or provider billed usage may differ. Documented local Collector setup in README.

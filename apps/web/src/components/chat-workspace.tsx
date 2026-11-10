@@ -9,7 +9,9 @@ import {
   ConversationListResponseSchema,
   ConversationMessagesResponseSchema,
   ConversationSummarySchema,
+  ChatObservabilitySchema,
   type ChatCitation,
+  type ChatObservability,
   type RetrievalDebugChunk,
   type ConversationSummary,
   type MembershipRole,
@@ -25,6 +27,7 @@ type OrgMindMessage = {
     | { type: 'text'; text: string }
     | { type: 'data-citations'; data: ChatCitation[] }
     | { type: 'data-retrieval-debug'; data: RetrievalDebugChunk[] }
+    | { type: 'data-observability'; data: ChatObservability }
   )[];
 };
 
@@ -35,6 +38,7 @@ function toUiMessages(
     content: string;
     citations: ChatCitation[];
     retrievalDebug: RetrievalDebugChunk[];
+    observability?: ChatObservability | undefined;
   }[],
 ): OrgMindMessage[] {
   return messages.map((message) => ({
@@ -47,6 +51,9 @@ function toUiMessages(
         : []),
       ...(message.role === 'assistant' && message.retrievalDebug.length > 0
         ? [{ type: 'data-retrieval-debug' as const, data: message.retrievalDebug }]
+        : []),
+      ...(message.role === 'assistant' && message.observability
+        ? [{ type: 'data-observability' as const, data: message.observability }]
         : []),
     ],
   }));
@@ -470,6 +477,7 @@ function ChatThread({
       let answerText = '';
       let streamedCitations: ChatCitation[] = [];
       let streamedRetrievalDebug: RetrievalDebugChunk[] = [];
+      let streamedObservability: ChatObservability | undefined;
       let citationsFinalized = false;
       let streamFailed = false;
       let done = false;
@@ -557,6 +565,9 @@ function ChatThread({
               const parsed = RetrievalDebugChunkSchema.safeParse(entry);
               return parsed.success ? [parsed.data] : [];
             });
+          } else if (part.type === 'data-observability') {
+            const parsed = ChatObservabilitySchema.safeParse(part.data);
+            streamedObservability = parsed.success ? parsed.data : undefined;
           } else if (part.type === 'text-delta' && typeof part.delta === 'string') {
             answerText += part.delta;
             pendingTextRef.current += part.delta;
@@ -578,7 +589,9 @@ function ChatThread({
                       ...message,
                       parts: message.parts.filter(
                         (item) =>
-                          item.type !== 'data-citations' && item.type !== 'data-retrieval-debug',
+                          item.type !== 'data-citations' &&
+                          item.type !== 'data-retrieval-debug' &&
+                          item.type !== 'data-observability',
                       ),
                     }
                   : message,
@@ -594,13 +607,19 @@ function ChatThread({
               current.map((message) => {
                 if (message.id !== responseMessageId) return message;
                 const parts: OrgMindMessage['parts'] = message.parts.filter(
-                  (item) => item.type !== 'data-citations' && item.type !== 'data-retrieval-debug',
+                  (item) =>
+                    item.type !== 'data-citations' &&
+                    item.type !== 'data-retrieval-debug' &&
+                    item.type !== 'data-observability',
                 );
                 if (usedCitations.length > 0) {
                   parts.push({ type: 'data-citations', data: usedCitations });
                 }
                 if (streamedRetrievalDebug.length > 0) {
                   parts.push({ type: 'data-retrieval-debug', data: streamedRetrievalDebug });
+                }
+                if (streamedObservability) {
+                  parts.push({ type: 'data-observability', data: streamedObservability });
                 }
                 return {
                   ...message,
@@ -767,6 +786,67 @@ function ChatThread({
                                 </tbody>
                               </table>
                             </div>
+                          </details>
+                        );
+                      }
+                      if (
+                        part.type === 'data-observability' &&
+                        process.env.NODE_ENV === 'development'
+                      ) {
+                        const data = part.data;
+                        return (
+                          <details
+                            className="chat-observability-debug"
+                            key={`${message.id}-${index}`}
+                          >
+                            <summary>Usage &amp; performance</summary>
+                            <dl>
+                              <div>
+                                <dt>Model</dt>
+                                <dd>{data.modelId ?? '—'}</dd>
+                              </div>
+                              <div>
+                                <dt>Tokens</dt>
+                                <dd>
+                                  {data.inputTokens.toLocaleString()} in ·{' '}
+                                  {data.outputTokens.toLocaleString()} out
+                                </dd>
+                              </div>
+                              <div>
+                                <dt>Estimated cost</dt>
+                                <dd>${data.estimatedCostUsd.toFixed(6)}</dd>
+                              </div>
+                              <div>
+                                <dt>Retrieval</dt>
+                                <dd>{Math.round(data.latencyMs.retrieval)} ms</dd>
+                              </div>
+                              <div>
+                                <dt>MongoDB search</dt>
+                                <dd>{Math.round(data.latencyMs.search)} ms</dd>
+                              </div>
+                              <div>
+                                <dt>Embedding</dt>
+                                <dd>{Math.round(data.latencyMs.embedding)} ms</dd>
+                              </div>
+                              <div>
+                                <dt>Rerank</dt>
+                                <dd>{Math.round(data.latencyMs.rerank)} ms</dd>
+                              </div>
+                              <div>
+                                <dt>Generation</dt>
+                                <dd>{Math.round(data.latencyMs.generation)} ms</dd>
+                              </div>
+                              <div>
+                                <dt>Total</dt>
+                                <dd>{Math.round(data.latencyMs.total)} ms</dd>
+                              </div>
+                              {data.traceId && (
+                                <div>
+                                  <dt>Trace ID</dt>
+                                  <dd>{data.traceId}</dd>
+                                </div>
+                              )}
+                            </dl>
                           </details>
                         );
                       }

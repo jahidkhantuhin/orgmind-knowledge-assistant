@@ -2,6 +2,7 @@ import { app } from './app.js';
 import { env } from './config/env.js';
 import { closeConnections } from './lib/connections.js';
 import { logger } from './lib/logger.js';
+import { shutdownTelemetry, startTelemetry } from './lib/telemetry.js';
 import { runMigrations } from './db/migrations/runner.js';
 import {
   closeDocumentIngestionQueue,
@@ -9,6 +10,7 @@ import {
 } from './modules/documents/document-ingestion.queue.js';
 
 let closing = false;
+startTelemetry();
 const documentWorker = startDocumentIngestionWorker();
 const server = app.listen(env.API_PORT, () =>
   logger.info({ port: env.API_PORT }, 'OrgMind API listening'),
@@ -41,6 +43,7 @@ async function shutdown(signal: string): Promise<void> {
   server.close(async (error) => {
     if (error) logger.error({ err: error }, 'HTTP server close failed');
     await Promise.allSettled([documentWorker.close(), closeDocumentIngestionQueue()]);
+    await shutdownTelemetry();
     await closeConnections();
     process.exit(error ? 1 : 0);
   });

@@ -35,6 +35,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+  otel-collector:
+    profiles: ['app']
+    image: otel/opentelemetry-collector:0.165.0
+    command: ['--config=/etc/otelcol/config.yaml']
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    logging: *local-logging
   api:
     profiles: ['app']
     build:
@@ -49,6 +56,8 @@ services:
       MONGODB_URI: 'mongodb://${MONGODB_ROOT_USERNAME:-root}:${MONGODB_ROOT_PASSWORD:-orgmind-local}@mongodb:27017/${MONGODB_DATABASE:-orgmind}?authSource=admin&directConnection=true'
       REDIS_URL: redis://redis:6379
       WEB_ORIGIN: http://localhost:3000
+      OTEL_SERVICE_NAME: orgmind-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     ports:
       - '4000:4000'
     depends_on:
@@ -56,6 +65,8 @@ services:
         condition: service_started
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     volumes:
       - .:/workspace
       - app_node_modules:/workspace/node_modules

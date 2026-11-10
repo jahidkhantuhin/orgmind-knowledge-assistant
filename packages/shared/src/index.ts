@@ -341,6 +341,24 @@ export function citationsReferencedInAnswer(
   return citations.filter((_citation, index) => referencedIndexes.has(index));
 }
 
+export const ChatObservabilitySchema = z.object({
+  traceId: z.string().optional(),
+  modelId: z.string().optional(),
+  inputTokens: z.number().int().nonnegative().default(0),
+  outputTokens: z.number().int().nonnegative().default(0),
+  totalTokens: z.number().int().nonnegative().default(0),
+  estimatedCostUsd: z.number().nonnegative().default(0),
+  latencyMs: z.object({
+    retrieval: z.number().nonnegative().default(0),
+    embedding: z.number().nonnegative().default(0),
+    search: z.number().nonnegative().default(0),
+    rerank: z.number().nonnegative().default(0),
+    generation: z.number().nonnegative().default(0),
+    total: z.number().nonnegative().default(0),
+  }),
+});
+export type ChatObservability = z.infer<typeof ChatObservabilitySchema>;
+
 export const ChatMessageRecordSchema = z.object({
   _id: z.string().uuid(),
   organizationId: z.string().min(1),
@@ -350,6 +368,7 @@ export const ChatMessageRecordSchema = z.object({
   content: z.string(),
   citations: z.array(ChatCitationSchema).default([]),
   retrievalDebug: z.array(RetrievalDebugChunkSchema).default([]),
+  observability: ChatObservabilitySchema.optional(),
   createdAt: z.date(),
 });
 export type ChatMessageRecord = z.infer<typeof ChatMessageRecordSchema>;
@@ -360,6 +379,7 @@ export const ChatMessageResponseSchema = z.object({
   content: z.string(),
   citations: z.array(ChatCitationSchema),
   retrievalDebug: z.array(RetrievalDebugChunkSchema).default([]),
+  observability: ChatObservabilitySchema.optional(),
   createdAt: z.string().datetime(),
 });
 export type ChatMessageResponse = z.infer<typeof ChatMessageResponseSchema>;
@@ -457,6 +477,33 @@ export type EvalRunSummary = z.infer<typeof EvalRunSummarySchema>;
 
 export const EvalRunsResponseSchema = z.object({ runs: z.array(EvalRunSummarySchema) });
 export type EvalRunsResponse = z.infer<typeof EvalRunsResponseSchema>;
+
+export const UsageDaySchema = z.object({
+  date: z.string(),
+  requests: z.number().int().nonnegative(),
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  estimatedCostUsd: z.number().nonnegative(),
+});
+export const UsageSummarySchema = z.object({
+  since: z.string().datetime(),
+  requests: z.number().int().nonnegative(),
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  totalTokens: z.number().int().nonnegative(),
+  estimatedCostUsd: z.number().nonnegative(),
+  averageLatencyMs: z.object({
+    retrieval: z.number().nonnegative(),
+    embedding: z.number().nonnegative(),
+    search: z.number().nonnegative(),
+    rerank: z.number().nonnegative(),
+    generation: z.number().nonnegative(),
+    total: z.number().nonnegative(),
+  }),
+  daily: z.array(UsageDaySchema),
+});
+export type UsageSummary = z.infer<typeof UsageSummarySchema>;
+export const UsageSummaryResponseSchema = z.object({ usage: UsageSummarySchema });
 
 export const DocumentChunksPageResponseSchema = z.object({
   chunks: z.array(DocumentChunkPreviewSchema),

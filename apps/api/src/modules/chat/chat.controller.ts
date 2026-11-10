@@ -10,6 +10,7 @@ import {
   CreateConversationSchema,
   RenameConversationSchema,
   type RetrievalDebugChunk,
+  type ChatObservability,
 } from '@orgmind/shared';
 import {
   createUIMessageStream,
@@ -27,6 +28,8 @@ import { retrievalService } from './retrieval.service.js';
 import { LOW_CONFIDENCE_ANSWER, buildGroundedSystemPrompt } from './prompt.builder.js';
 import { aclTokensForPrincipal } from '../documents/document-acl.js';
 import { documentsRepository } from '../documents/documents.repository.js';
+import { activeTraceId, withSpan } from '../../lib/telemetry.js';
+import { estimateTokenCostUsd } from './usage-metrics.js';
 
 function routeParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -51,6 +54,7 @@ function toMessageResponse(record: Awaited<ReturnType<typeof chatRepository.addM
     content: record.content,
     citations: citationsReferencedInAnswer(record.content, record.citations),
     retrievalDebug: record.retrievalDebug,
+    observability: record.observability,
     createdAt: record.createdAt.toISOString(),
   });
 }
@@ -225,137 +229,204 @@ function textFromLastUserMessage(messages: unknown[]): string | null {
 }
 
 export const streamChatController: RequestHandler = async (req, res) => {
-  const userId = req.authSession?.user.id;
-  const parsed = ChatRequestSchema.safeParse(req.body);
-  const organizationId = routeParam(req.params.organizationId);
-  if (
-    !userId ||
-    !organizationId ||
-    !parsed.success ||
-    parsed.data.organizationId !== organizationId
-  ) {
-    res.status(400).json({
-      error: { code: 'INVALID_CHAT_REQUEST', message: 'Your question could not be sent.' },
-    });
-    return;
-  }
-  const question = textFromLastUserMessage(parsed.data.messages);
-  if (!question) {
-    res.status(400).json({
-      error: { code: 'INVALID_QUESTION', message: 'Enter a question under 2,000 characters.' },
-    });
-    return;
-  }
-  const conversation = await chatRepository.findConversation(
-    parsed.data.conversationId,
-    organizationId,
-    userId,
-  );
-  if (!conversation) {
-    res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Conversation not found.' } });
-    return;
-  }
+  await withSpan('chat.request', async () => {
+    const userId = req.authSession?.user.id;
+    const parsed = ChatRequestSchema.safeParse(req.body);
+    const organizationId = routeParam(req.params.organizationId);
+    if (
+      !userId ||
+      !organizationId ||
+      !parsed.success ||
+      parsed.data.organizationId !== organizationId
+    ) {
+      res.status(400).json({
+        error: { code: 'INVALID_CHAT_REQUEST', message: 'Your question could not be sent.' },
+      });
+      return;
+    }
+    const question = textFromLastUserMessage(parsed.data.messages);
+    if (!question) {
+      res.status(400).json({
+        error: { code: 'INVALID_QUESTION', message: 'Enter a question under 2,000 characters.' },
+      });
+      return;
+    }
+    const conversation = await chatRepository.findConversation(
+      parsed.data.conversationId,
+      organizationId,
+      userId,
+    );
+    if (!conversation) {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Conversation not found.' } });
+      return;
+    }
 
-  if (!env.GOOGLE_API_KEY) {
-    res.status(503).json({
-      error: {
-        code: 'CHAT_NOT_CONFIGURED',
-        message: 'Set GOOGLE_API_KEY before starting a chat.',
+    if (!env.GOOGLE_API_KEY) {
+      res.status(503).json({
+        error: {
+          code: 'CHAT_NOT_CONFIGURED',
+          message: 'Set GOOGLE_API_KEY before starting a chat.',
+        },
+      });
+      return;
+    }
+    await chatRepository.addMessage({
+      organizationId,
+      conversationId: conversation._id,
+      userId,
+      role: 'user',
+      content: question,
+      citations: [],
+    });
+    const aclTokens = aclTokensForPrincipal(
+      userId,
+      req.membership?.role ?? 'viewer',
+      req.membership?.groupIds ?? [],
+    );
+    const priorMessages = await messagesWithCurrentAccess(
+      await chatRepository.listMessages(conversation._id),
+      organizationId,
+      aclTokens,
+    );
+    const requestStartedAt = performance.now();
+    const retrieval = await retrievalService.retrieve(question, organizationId, aclTokens);
+    const isLowConfidence = retrieval.citations.length === 0;
+    const citations = retrieval.citations;
+    const modelMessages: ModelMessage[] = priorMessages.slice(-20).map((message) => ({
+      role: message.role,
+      content: message.content,
+    }));
+    const responseMessageId = randomUUID();
+    let finalObservability: ChatObservability | undefined;
+    const stream = createUIMessageStream<
+      UIMessage<
+        unknown,
+        {
+          citations: ChatCitation[];
+          'retrieval-debug': RetrievalDebugChunk[];
+          observability: ChatObservability;
+        }
+      >
+    >({
+      execute: async ({ writer }) => {
+        writer.write({ type: 'start', messageId: responseMessageId });
+        writer.write({ type: 'data-citations', data: citations });
+        writer.write({ type: 'data-retrieval-debug', data: retrieval.debug });
+        let observability: ChatObservability;
+        if (isLowConfidence) {
+          observability = {
+            traceId: activeTraceId(),
+            modelId: env.CHAT_MODEL,
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            estimatedCostUsd: 0,
+            latencyMs: {
+              retrieval: retrieval.latencyMs.total,
+              embedding: retrieval.latencyMs.embedding,
+              search: retrieval.latencyMs.search,
+              rerank: retrieval.latencyMs.rerank,
+              generation: 0,
+              total: performance.now() - requestStartedAt,
+            },
+          };
+          finalObservability = observability;
+          writer.write({ type: 'data-observability', data: observability });
+          writer.write({ type: 'text-start', id: responseMessageId });
+          writer.write({ type: 'text-delta', id: responseMessageId, delta: LOW_CONFIDENCE_ANSWER });
+          writer.write({ type: 'text-end', id: responseMessageId });
+          writer.write({ type: 'finish', finishReason: 'stop' });
+          return;
+        }
+        const generationStartedAt = performance.now();
+        observability = await withSpan(
+          'chat.generation',
+          async () => {
+            const result = streamText({
+              model: chatModelProvider.getModel(),
+              system: `${buildGroundedSystemPrompt(citations)}\n\nRetrieved passages:\n${retrieval.context}`,
+              messages: modelMessages,
+              maxOutputTokens: 900,
+              onError: ({ error }) => logger.error({ err: error }, 'Chat model stream failed'),
+            });
+            writer.merge(
+              result.toUIMessageStream({
+                sendStart: false,
+                onError: () =>
+                  `The configured model (${env.CHAT_MODEL}) could not generate an answer. Check that the model is available to your Google AI project and that its quota is available.`,
+              }),
+            );
+            const usage = await result.totalUsage;
+            const inputTokens = usage.inputTokens ?? 0;
+            const outputTokens = usage.outputTokens ?? 0;
+            const generation = performance.now() - generationStartedAt;
+            const estimatedCostUsd = estimateTokenCostUsd(
+              inputTokens,
+              outputTokens,
+              env.GEMINI_INPUT_COST_USD_PER_MILLION_TOKENS,
+              env.GEMINI_OUTPUT_COST_USD_PER_MILLION_TOKENS,
+            );
+            const value: ChatObservability = {
+              traceId: activeTraceId(),
+              modelId: env.CHAT_MODEL,
+              inputTokens,
+              outputTokens,
+              totalTokens: usage.totalTokens ?? inputTokens + outputTokens,
+              estimatedCostUsd,
+              latencyMs: {
+                retrieval: retrieval.latencyMs.total,
+                embedding: retrieval.latencyMs.embedding,
+                search: retrieval.latencyMs.search,
+                rerank: retrieval.latencyMs.rerank,
+                generation,
+                total: performance.now() - requestStartedAt,
+              },
+            };
+            return value;
+          },
+          { 'gen_ai.request.model': env.CHAT_MODEL },
+        );
+        finalObservability = observability;
+        writer.write({ type: 'data-observability', data: observability });
+      },
+      onError: (error) => {
+        logger.error({ err: error, conversationId: conversation._id }, 'Chat stream failed');
+        return 'Unable to complete the answer. Please try again.';
+      },
+      onFinish: async ({ responseMessage }) => {
+        try {
+          const content = responseMessage.parts
+            .filter((part) => part.type === 'text')
+            .map((part) => (part.type === 'text' ? part.text : ''))
+            .join('');
+          if (!content) return;
+          const usedCitations = citationsReferencedInAnswer(content, citations);
+          await chatRepository.addMessage({
+            organizationId,
+            conversationId: conversation._id,
+            userId,
+            role: 'assistant',
+            content,
+            citations: usedCitations,
+            retrievalDebug: retrieval.debug,
+            ...(finalObservability ? { observability: finalObservability } : {}),
+          });
+        } catch (error) {
+          logger.error(
+            { err: error, conversationId: conversation._id },
+            'Could not persist the streamed assistant answer.',
+          );
+        }
       },
     });
-    return;
-  }
-  await chatRepository.addMessage({
-    organizationId,
-    conversationId: conversation._id,
-    userId,
-    role: 'user',
-    content: question,
-    citations: [],
+    if (conversation.title === 'New conversation') {
+      const title =
+        question
+          .split(/[.!?\n]/, 1)[0]
+          ?.trim()
+          .slice(0, 58) || 'New conversation';
+      await chatRepository.renameConversation(conversation._id, organizationId, userId, title);
+    }
+    await pipeUIMessageStreamToResponse({ response: res, stream });
   });
-  const aclTokens = aclTokensForPrincipal(
-    userId,
-    req.membership?.role ?? 'viewer',
-    req.membership?.groupIds ?? [],
-  );
-  const priorMessages = await messagesWithCurrentAccess(
-    await chatRepository.listMessages(conversation._id),
-    organizationId,
-    aclTokens,
-  );
-  const retrieval = await retrievalService.retrieve(question, organizationId, aclTokens);
-  const isLowConfidence = retrieval.citations.length === 0;
-  const citations = retrieval.citations;
-  const modelMessages: ModelMessage[] = priorMessages.slice(-20).map((message) => ({
-    role: message.role,
-    content: message.content,
-  }));
-  const responseMessageId = randomUUID();
-  const stream = createUIMessageStream<
-    UIMessage<unknown, { citations: ChatCitation[]; 'retrieval-debug': RetrievalDebugChunk[] }>
-  >({
-    execute: async ({ writer }) => {
-      writer.write({ type: 'start', messageId: responseMessageId });
-      writer.write({ type: 'data-citations', data: citations });
-      writer.write({ type: 'data-retrieval-debug', data: retrieval.debug });
-      if (isLowConfidence) {
-        writer.write({ type: 'text-start', id: responseMessageId });
-        writer.write({ type: 'text-delta', id: responseMessageId, delta: LOW_CONFIDENCE_ANSWER });
-        writer.write({ type: 'text-end', id: responseMessageId });
-        writer.write({ type: 'finish', finishReason: 'stop' });
-        return;
-      }
-      const result = streamText({
-        model: chatModelProvider.getModel(),
-        system: `${buildGroundedSystemPrompt(citations)}\n\nRetrieved passages:\n${retrieval.context}`,
-        messages: modelMessages,
-        maxOutputTokens: 900,
-        onError: ({ error }) => logger.error({ err: error }, 'Chat model stream failed'),
-      });
-      writer.merge(
-        result.toUIMessageStream({
-          sendStart: false,
-          onError: () =>
-            `The configured model (${env.CHAT_MODEL}) could not generate an answer. Check that the model is available to your Google AI project and that its quota is available.`,
-        }),
-      );
-    },
-    onError: (error) => {
-      logger.error({ err: error, conversationId: conversation._id }, 'Chat stream failed');
-      return 'Unable to complete the answer. Please try again.';
-    },
-    onFinish: async ({ responseMessage }) => {
-      try {
-        const content = responseMessage.parts
-          .filter((part) => part.type === 'text')
-          .map((part) => (part.type === 'text' ? part.text : ''))
-          .join('');
-        if (!content) return;
-        const usedCitations = citationsReferencedInAnswer(content, citations);
-        await chatRepository.addMessage({
-          organizationId,
-          conversationId: conversation._id,
-          userId,
-          role: 'assistant',
-          content,
-          citations: usedCitations,
-          retrievalDebug: retrieval.debug,
-        });
-      } catch (error) {
-        logger.error(
-          { err: error, conversationId: conversation._id },
-          'Could not persist the streamed assistant answer.',
-        );
-      }
-    },
-  });
-  if (conversation.title === 'New conversation') {
-    const title =
-      question
-        .split(/[.!?\n]/, 1)[0]
-        ?.trim()
-        .slice(0, 58) || 'New conversation';
-    await chatRepository.renameConversation(conversation._id, organizationId, userId, title);
-  }
-  await pipeUIMessageStreamToResponse({ response: res, stream });
 };

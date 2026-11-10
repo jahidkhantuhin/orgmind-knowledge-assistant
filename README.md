@@ -192,6 +192,16 @@ pnpm build
 
 The authentication integration test uses the separate `TEST_MONGODB_DATABASE` database. Run it with Docker services available. The `db:search-indexes` command creates the version-controlled Search index definitions and waits until both are queryable; rerun it after changing the embedding dimensions.
 
+## Step 10: Chat observability and workspace usage
+
+Chat assistant messages now store token counts, model ID, stage timings, trace ID when tracing is enabled, and a configurable estimated Gemini cost. The admin-only **Usage** page shows the workspace's last 30 days of answers, input/output tokens, paid-list-price cost estimate, daily activity, and average latency for retrieval, embedding, MongoDB Search, reranking, generation, and the full response. The page reads persisted message metadata and does not need a trace collector.
+
+Cost estimates use `GEMINI_INPUT_COST_USD_PER_MILLION_TOKENS` (default `0.3`) and `GEMINI_OUTPUT_COST_USD_PER_MILLION_TOKENS` (default `2.5`). They represent configured paid-list pricing, not an invoice; actual charges can differ, including when free-tier requests are not billed. See [Google AI model pricing](https://ai.google.dev/gemini-api/docs/pricing). Older assistant messages without metadata are excluded from usage totals.
+
+OpenTelemetry spans are sent only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. For local traces, start the optional Collector and apps with `docker compose --profile app up -d --build --wait`; the API exports OTLP/HTTP traces to the Collector, which prints them through its debug exporter. With the usual host-based `pnpm dev`, set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in `.env` and run `docker compose --profile app up -d otel-collector`. Leave it empty to disable exporting. The `app` profile starts API/web in Docker, so do not run the host dev servers concurrently.
+
+Verify persistence and role-gated Usage data by running `pnpm db:migrate`, asking a document-grounded chat question, then opening **Usage** as an admin. In development, expand **Usage & performance** under the assistant answer to see its token counts, cost estimate, trace ID, and retrieval/search/rerank/generation timings. To view exported traces, follow Collector logs with `docker compose --profile app logs --follow --tail=100 otel-collector`.
+
 ## Author
 
 Jahid Khan Tuhin, Full Stack JavaScript Engineer

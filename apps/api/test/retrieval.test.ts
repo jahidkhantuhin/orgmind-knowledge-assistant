@@ -74,11 +74,7 @@ describe('vector retrieval service', () => {
 
     await expect(
       service.retrieve('A question', 'org-1', ['user:user-1', 'role:viewer']),
-    ).resolves.toEqual({
-      citations: [],
-      debug: [],
-      context: '',
-    });
+    ).resolves.toMatchObject({ citations: [], debug: [], context: '' });
   });
 
   it('uses the configured hybrid strategy and returns per-chunk retrieval details', async () => {

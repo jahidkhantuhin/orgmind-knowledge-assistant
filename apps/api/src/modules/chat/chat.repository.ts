@@ -28,6 +28,13 @@ function parseMessage(value: unknown): ChatMessageRecord {
 }
 
 export const chatRepository = {
+  async ensureUsageIndex(): Promise<void> {
+    await messages().createIndex(
+      { organizationId: 1, role: 1, createdAt: -1 },
+      { name: 'messages_usage_by_workspace_date' },
+    );
+  },
+
   async ensureIndexes(): Promise<void> {
     await Promise.all([
       conversations().createIndex(
@@ -108,6 +115,7 @@ export const chatRepository = {
   async addMessage(
     record: Omit<ChatMessageRecord, '_id' | 'createdAt' | 'retrievalDebug'> & {
       retrievalDebug?: ChatMessageRecord['retrievalDebug'];
+      observability?: ChatMessageRecord['observability'];
     },
   ): Promise<ChatMessageRecord> {
     const message = parseMessage({

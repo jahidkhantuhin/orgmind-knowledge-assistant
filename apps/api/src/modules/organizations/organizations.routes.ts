@@ -39,6 +39,7 @@ import {
   updateRetrievalSettingsController,
 } from './retrieval-settings.controller.js';
 import { listEvalRunsController } from '../evals/eval-runs.controller.js';
+import { getOrganizationUsageController } from '../usage/usage.controller.js';
 
 export const organizationsRouter = Router();
 
@@ -179,6 +180,12 @@ organizationsRouter.get(
   requireAuth,
   requireOrganizationRole(['admin']),
   listEvalRunsController,
+);
+organizationsRouter.get(
+  '/:organizationId/usage',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  getOrganizationUsageController,
 );
 organizationsRouter.patch(
   '/:organizationId/chat/retrieval-settings',
