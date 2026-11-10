@@ -192,6 +192,8 @@ pnpm build
 
 The authentication integration test uses the separate `TEST_MONGODB_DATABASE` database. Run it with Docker services available. The `db:search-indexes` command creates the version-controlled Search index definitions and waits until both are queryable; rerun it after changing the embedding dimensions.
 
+Husky runs `pnpm lint`, `pnpm typecheck`, and `pnpm test` sequentially before each normal Git push. The first failed check stops the push; fix the failure and push again. MongoDB-dependent integration tests skip when MongoDB is unavailable, so start the Docker services first when you want those checks to run. As with any local Git hook, `--no-verify` can bypass it; GitHub Actions remains the shared CI check.
+
 ## Step 10: Chat observability and workspace usage
 
 Chat assistant messages now store token counts, model ID, stage timings, trace ID when tracing is enabled, and a configurable estimated Gemini cost. The admin-only **Usage** page shows the workspace's last 30 days of answers, input/output tokens, paid-list-price cost estimate, daily activity, and average latency for retrieval, embedding, MongoDB Search, reranking, generation, and the full response. The page reads persisted message metadata and does not need a trace collector.
