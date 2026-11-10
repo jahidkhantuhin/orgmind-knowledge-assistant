@@ -1,28 +1,19 @@
 import Link from 'next/link';
 import type { MembershipRole } from '@orgmind/shared';
 import { ThemeToggle } from './theme-toggle';
-
-type WorkspaceSection = 'assistant' | 'knowledge' | 'members' | 'evals' | 'usage';
+import {
+  getWorkspaceNavigationItems,
+  type WorkspaceNavigationSection,
+} from './workspace-navigation-items';
 
 export function WorkspaceNavigation({
   active,
   role,
 }: {
-  active: WorkspaceSection;
+  active: WorkspaceNavigationSection;
   role: MembershipRole;
 }) {
-  const links = [
-    { href: '/', label: 'Overview', section: null },
-    { href: '/chat', label: 'Assistant', section: 'assistant' as const },
-    { href: '/knowledge', label: 'Knowledge base', section: 'knowledge' as const },
-    ...(role === 'admin'
-      ? [
-          { href: '/settings/members', label: 'Members', section: 'members' as const },
-          { href: '/settings/evals', label: 'Evals', section: 'evals' as const },
-          { href: '/settings/usage', label: 'Usage', section: 'usage' as const },
-        ]
-      : []),
-  ];
+  const links = getWorkspaceNavigationItems(role);
 
   return (
     <header className="workspace-navigation">

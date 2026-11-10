@@ -9,6 +9,7 @@ import { ThemeToggle } from './theme-toggle';
 import type { AuthMeResponse } from '@orgmind/shared';
 import { SignOutButton } from './sign-out-button';
 import { useFeedback } from './feedback-provider';
+import { getWorkspaceNavigationItems } from './workspace-navigation-items';
 
 function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
   const router = useRouter();
@@ -80,51 +81,21 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
         ) : (
           <div className="workspace-label">{organization?.organizationName ?? 'WORKSPACE'}</div>
         )}
-        <nav>
-          <a className="nav-link active" href="#" aria-label="Overview" title="Overview">
-            <span aria-hidden="true">⌂</span>
-            <span className="nav-label">Overview</span>
-          </a>
-          <Link
-            className="nav-link muted"
-            href="/chat"
-            aria-label="Knowledge assistant"
-            title="Knowledge assistant"
-          >
-            <span aria-hidden="true">✳</span>
-            <span className="nav-label">Assistant</span>
-          </Link>
-          <Link
-            className="nav-link knowledge-nav-link muted"
-            href="/knowledge"
-            aria-label="Knowledge base"
-            title="Knowledge base"
-          >
-            <span aria-hidden="true">▤</span>
-            <span className="nav-label">Knowledge base</span>
-          </Link>
-          {organization?.role === 'admin' && (
-            <>
+        <nav aria-label="Workspace navigation">
+          {organization &&
+            getWorkspaceNavigationItems(organization.role).map((item) => (
               <Link
-                className="nav-link muted"
-                href="/settings/members"
-                aria-label="Members"
-                title="Members"
+                className={`nav-link${item.section === 'overview' ? ' active' : ' muted'}${item.section === 'knowledge' ? ' knowledge-nav-link' : ''}`}
+                href={item.href}
+                key={item.href}
+                aria-label={item.label}
+                title={item.label}
+                aria-current={item.section === 'overview' ? 'page' : undefined}
               >
-                <span aria-hidden="true">♙</span>
-                <span className="nav-label">Members</span>
+                <span aria-hidden="true">{item.icon}</span>
+                <span className="nav-label">{item.label}</span>
               </Link>
-              <Link
-                className="nav-link muted"
-                href="/settings/evals"
-                aria-label="Evals"
-                title="Evals"
-              >
-                <span aria-hidden="true">▥</span>
-                <span className="nav-label">Evals</span>
-              </Link>
-            </>
-          )}
+            ))}
         </nav>
         <div className="sidebar-bottom">
           <div className="avatar">{initials}</div>
