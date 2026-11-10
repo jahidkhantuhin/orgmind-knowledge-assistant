@@ -342,7 +342,10 @@ export function citationsReferencedInAnswer(
 }
 
 export const ChatObservabilitySchema = z.object({
-  traceId: z.string().optional(),
+  traceId: z
+    .string()
+    .nullish()
+    .transform((traceId) => traceId ?? undefined),
   modelId: z.string().optional(),
   inputTokens: z.number().int().nonnegative().default(0),
   outputTokens: z.number().int().nonnegative().default(0),

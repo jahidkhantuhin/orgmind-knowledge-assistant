@@ -314,8 +314,9 @@ export const streamChatController: RequestHandler = async (req, res) => {
         writer.write({ type: 'data-retrieval-debug', data: retrieval.debug });
         let observability: ChatObservability;
         if (isLowConfidence) {
+          const traceId = activeTraceId();
           observability = {
-            traceId: activeTraceId(),
+            ...(traceId ? { traceId } : {}),
             modelId: env.CHAT_MODEL,
             inputTokens: 0,
             outputTokens: 0,
@@ -366,8 +367,9 @@ export const streamChatController: RequestHandler = async (req, res) => {
               env.GEMINI_INPUT_COST_USD_PER_MILLION_TOKENS,
               env.GEMINI_OUTPUT_COST_USD_PER_MILLION_TOKENS,
             );
+            const traceId = activeTraceId();
             const value: ChatObservability = {
-              traceId: activeTraceId(),
+              ...(traceId ? { traceId } : {}),
               modelId: env.CHAT_MODEL,
               inputTokens,
               outputTokens,
