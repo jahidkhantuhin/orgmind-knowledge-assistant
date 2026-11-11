@@ -16,6 +16,7 @@ export const chunksVectorSearchDefinition = {
     { type: 'filter', path: 'collectionId' },
     { type: 'filter', path: 'acl' },
     { type: 'filter', path: 'documentId' },
+    { type: 'filter', path: 'embeddingProfile' },
   ],
 };
 
@@ -28,6 +29,7 @@ export const chunksTextSearchDefinition = {
       collectionId: { type: 'token' },
       acl: { type: 'token' },
       documentId: { type: 'token' },
+      embeddingProfile: { type: 'token' },
     },
   },
 };

@@ -28,6 +28,7 @@ describe('hybrid retrieval pipeline builder', () => {
       filter: {
         $and: [
           { orgId: 'org-1' },
+          { embeddingProfile: 'google:gemini-embedding-001:768' },
           { $or: [{ acl: 'user:user-1' }, { acl: 'group:team-1' }, { acl: 'role:member' }] },
         ],
       },
@@ -38,6 +39,7 @@ describe('hybrid retrieval pipeline builder', () => {
         must: [{ text: { query: 'invoice retention', path: 'text' } }],
         filter: [
           { equals: { path: 'orgId', value: 'org-1' } },
+          { equals: { path: 'embeddingProfile', value: 'google:gemini-embedding-001:768' } },
           {
             compound: {
               should: [

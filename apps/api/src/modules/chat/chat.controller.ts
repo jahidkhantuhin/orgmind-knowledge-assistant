@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import type { RequestHandler } from 'express';
 import {
   ChatRequestSchema,
@@ -25,6 +26,9 @@ import { env } from '../../config/env.js';
 import { logger } from '../../lib/logger.js';
 import { chatRepository } from './chat.repository.js';
 import { chatModelProvider } from './chat-model.provider.js';
+import { routeChatModel } from './model-routing.js';
+import { semanticChatCache, type SemanticCacheScope } from './semantic-chat-cache.js';
+import { embeddingProvider } from '../documents/embedding.service.js';
 import {
   createAgenticRetrievalService,
   retrievalService,
@@ -38,6 +42,7 @@ import { estimateTokenCostUsd } from './usage-metrics.js';
 import { createAgenticRagService } from './agentic-rag.service.js';
 import type { AgentStep } from './agentic-rag.graph.js';
 import { auditLogsRepository } from '../audit/audit-logs.repository.js';
+import { retrievalSettingsRepository } from '../organizations/retrieval-settings.repository.js';
 import {
   createPiiRedactionTransform,
   looksLikePromptInjection,
@@ -305,13 +310,14 @@ export const streamChatController: RequestHandler = async (req, res) => {
       return;
     }
     const safeQuestion = questionRedaction.text;
+    const selectedModel = routeChatModel(safeQuestion, parsed.data.modelPreference);
     let securityNotice = securityNoticeFor(0, questionRedaction.count);
 
-    if (!env.GOOGLE_API_KEY) {
+    if (env.CHAT_PROVIDER === 'google' && !env.GOOGLE_API_KEY) {
       res.status(503).json({
         error: {
           code: 'CHAT_NOT_CONFIGURED',
-          message: 'Set GOOGLE_API_KEY before starting a chat.',
+          message: 'Set GOOGLE_API_KEY before starting a Google-powered chat.',
         },
       });
       return;
@@ -346,18 +352,100 @@ export const streamChatController: RequestHandler = async (req, res) => {
     let injectionPassagesBlocked = 0;
     let piiValuesRedacted = questionRedaction.count;
     let retrieval: RetrievalResult | undefined;
+    let citations: ChatCitation[] = [];
+    let retrievalDebug: RetrievalDebugChunk[] = [];
+    let cachedAnswer: { answer: string; similarity: number } | undefined;
+    let cacheScope: SemanticCacheScope | undefined;
+    let cacheVector: number[] | undefined;
+    let cacheLookupMs = 0;
     if (parsed.data.mode === 'simple') {
-      const rawRetrieval = await retrievalService.retrieve(safeQuestion, organizationId, aclTokens);
-      collectAuditDocuments(rawRetrieval);
-      const secured = secureRetrievedEvidence(rawRetrieval, env.CHAT_PII_REDACTION_ENABLED);
-      retrieval = secured.result;
-      injectionPassagesBlocked += secured.blockedPassages;
-      piiValuesRedacted += secured.redactedValues;
-      securityNotice = securityNoticeFor(injectionPassagesBlocked, piiValuesRedacted);
+      const settings = await retrievalSettingsRepository.get(organizationId);
+      const canUseSemanticCache = env.CHAT_SEMANTIC_CACHE_ENABLED && !settings.queryRewriteEnabled;
+      if (canUseSemanticCache) {
+        const modelHistory = priorMessages
+          .slice(0, -1)
+          .map(({ role, content }) => ({ role, content }));
+        const historyFingerprint = createHash('sha256')
+          .update(JSON.stringify(modelHistory))
+          .digest('hex');
+        cacheScope = {
+          organizationId,
+          aclTokens,
+          modelId: `${env.CHAT_PROVIDER}:${selectedModel.modelId}`,
+          embeddingProfile: embeddingProvider.profile,
+          historyFingerprint,
+          retrievalFingerprint: JSON.stringify({
+            strategy: env.CHAT_RETRIEVAL_STRATEGY,
+            topK: env.CHAT_TOP_K,
+            minimumScore: env.CHAT_MIN_RELEVANCE_SCORE,
+            rerankingEnabled: settings.rerankingEnabled,
+            rerankModel: env.COHERE_RERANK_MODEL,
+            rerankCandidateCount: env.CHAT_RERANK_CANDIDATE_COUNT,
+            vectorWeight: env.CHAT_VECTOR_SEARCH_WEIGHT,
+            keywordWeight: env.CHAT_KEYWORD_SEARCH_WEIGHT,
+          }),
+        };
+        const cacheStartedAt = performance.now();
+        const [queryEmbedding] = await withSpan(
+          'chat.embedding',
+          () => embeddingProvider.embed([safeQuestion], 'query'),
+          { 'orgmind.embedding.model': embeddingProvider.model },
+        );
+        cacheLookupMs = performance.now() - cacheStartedAt;
+        if (queryEmbedding) {
+          cacheVector = Array.from(queryEmbedding);
+          const found = await semanticChatCache.find(cacheScope, cacheVector);
+          if (found) {
+            const documentIds = [
+              ...new Set(found.answer.citations.map((citation) => citation.documentId)),
+            ];
+            const accessible = await documentsRepository.findByIdsInOrganization(
+              documentIds,
+              organizationId,
+              aclTokens,
+            );
+            if (accessible.length === documentIds.length) {
+              cachedAnswer = { answer: found.answer.answer, similarity: found.similarity };
+              citations = found.answer.citations;
+              retrievalDebug = found.answer.retrievalDebug.filter(
+                (item) =>
+                  item.documentId &&
+                  accessible.some((document) => document._id === item.documentId),
+              );
+              securityNotice = found.answer.securityNotice ?? securityNotice;
+              retrieval = {
+                citations,
+                debug: retrievalDebug,
+                context: '',
+                latencyMs: {
+                  embedding: cacheLookupMs,
+                  search: 0,
+                  rerank: 0,
+                  total: cacheLookupMs,
+                },
+              };
+            }
+          }
+        }
+      }
+      if (!cachedAnswer) {
+        const rawRetrieval = await retrievalService.retrieve(
+          safeQuestion,
+          organizationId,
+          aclTokens,
+          cacheVector ? { embedding: cacheVector, embeddingLatencyMs: cacheLookupMs } : undefined,
+        );
+        collectAuditDocuments(rawRetrieval);
+        const secured = secureRetrievedEvidence(rawRetrieval, env.CHAT_PII_REDACTION_ENABLED);
+        retrieval = secured.result;
+        injectionPassagesBlocked += secured.blockedPassages;
+        piiValuesRedacted += secured.redactedValues;
+        securityNotice = securityNoticeFor(injectionPassagesBlocked, piiValuesRedacted);
+      }
     }
-    const isLowConfidence = retrieval?.citations.length === 0;
-    let citations = retrieval?.citations ?? [];
-    let retrievalDebug = retrieval?.debug ?? [];
+    citations = retrieval?.citations ?? citations;
+    retrievalDebug = retrieval?.debug ?? retrievalDebug;
+    const isLowConfidence = !cachedAnswer && retrieval?.citations.length === 0;
     const modelMessages: ModelMessage[] = priorMessages.slice(-20).map((message) => {
       if (!env.CHAT_PII_REDACTION_ENABLED) return { role: message.role, content: message.content };
       const redacted = redactPii(message.content);
@@ -387,6 +475,34 @@ export const streamChatController: RequestHandler = async (req, res) => {
           writer.write({ type: 'data-retrieval-debug', data: retrieval?.debug ?? [] });
         }
         let observability: ChatObservability;
+        if (cachedAnswer && retrieval && parsed.data.mode === 'simple') {
+          const traceId = activeTraceId();
+          observability = {
+            ...(traceId ? { traceId } : {}),
+            modelId: selectedModel.modelId,
+            inputTokens: 0,
+            outputTokens: 0,
+            totalTokens: 0,
+            estimatedCostUsd: 0,
+            cacheHit: true,
+            cacheSimilarity: cachedAnswer.similarity,
+            latencyMs: {
+              retrieval: cacheLookupMs,
+              embedding: cacheLookupMs,
+              search: 0,
+              rerank: 0,
+              generation: 0,
+              total: performance.now() - requestStartedAt,
+            },
+          };
+          finalObservability = observability;
+          writer.write({ type: 'data-observability', data: observability });
+          writer.write({ type: 'text-start', id: responseMessageId });
+          writer.write({ type: 'text-delta', id: responseMessageId, delta: cachedAnswer.answer });
+          writer.write({ type: 'text-end', id: responseMessageId });
+          writer.write({ type: 'finish', finishReason: 'stop' });
+          return;
+        }
         if (parsed.data.mode === 'agentic') {
           const agentStartedAt = performance.now();
           const agenticRetrieval = createAgenticRetrievalService();
@@ -401,6 +517,9 @@ export const streamChatController: RequestHandler = async (req, res) => {
             },
             maxIterations: env.CHAT_AGENT_MAX_ITERATIONS,
             maxCostUsd: env.CHAT_AGENT_MAX_COST_USD,
+            modelId: selectedModel.modelId,
+            inputUsdPerMillion: selectedModel.inputUsdPerMillion,
+            outputUsdPerMillion: selectedModel.outputUsdPerMillion,
             emit: (step) => writer.write({ type: 'data-agent-step', data: step }),
           }).run({
             question: safeQuestion,
@@ -426,7 +545,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
           const traceId = activeTraceId();
           observability = {
             ...(traceId ? { traceId } : {}),
-            modelId: env.CHAT_MODEL,
+            modelId: selectedModel.modelId,
             inputTokens: result.inputTokens,
             outputTokens: result.outputTokens,
             totalTokens: result.inputTokens + result.outputTokens,
@@ -452,7 +571,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
           const traceId = activeTraceId();
           observability = {
             ...(traceId ? { traceId } : {}),
-            modelId: env.CHAT_MODEL,
+            modelId: selectedModel.modelId,
             inputTokens: 0,
             outputTokens: 0,
             totalTokens: 0,
@@ -480,7 +599,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
           'chat.generation',
           async () => {
             const result = streamText({
-              model: chatModelProvider.getModel(),
+              model: chatModelProvider.getModel(selectedModel.modelId),
               system: `${buildGroundedSystemPrompt(citations)}\n\nRetrieved passages:\n${retrieval!.context}`,
               messages: modelMessages,
               maxOutputTokens: 900,
@@ -497,7 +616,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
               result.toUIMessageStream({
                 sendStart: false,
                 onError: () =>
-                  `The configured model (${env.CHAT_MODEL}) could not generate an answer. Check that the model is available to your Google AI project and that its quota is available.`,
+                  `The configured model (${selectedModel.modelId}) could not generate an answer. Check that the configured provider and model are available.`,
               }),
             );
             const usage = await result.totalUsage;
@@ -515,13 +634,13 @@ export const streamChatController: RequestHandler = async (req, res) => {
             const estimatedCostUsd = estimateTokenCostUsd(
               inputTokens,
               outputTokens,
-              env.GEMINI_INPUT_COST_USD_PER_MILLION_TOKENS,
-              env.GEMINI_OUTPUT_COST_USD_PER_MILLION_TOKENS,
+              selectedModel.inputUsdPerMillion,
+              selectedModel.outputUsdPerMillion,
             );
             const traceId = activeTraceId();
             const value: ChatObservability = {
               ...(traceId ? { traceId } : {}),
-              modelId: env.CHAT_MODEL,
+              modelId: selectedModel.modelId,
               inputTokens,
               outputTokens,
               totalTokens: usage.totalTokens ?? inputTokens + outputTokens,
@@ -537,7 +656,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
             };
             return value;
           },
-          { 'gen_ai.request.model': env.CHAT_MODEL },
+          { 'gen_ai.request.model': selectedModel.modelId },
         );
         finalObservability = observability;
         writer.write({ type: 'data-observability', data: observability });
@@ -588,6 +707,22 @@ export const streamChatController: RequestHandler = async (req, res) => {
             );
           }
           const writeResults = await Promise.allSettled(writes);
+          if (
+            content &&
+            usedCitations.length > 0 &&
+            cacheScope &&
+            cacheVector &&
+            parsed.data.mode === 'simple' &&
+            finalObservability?.cacheHit !== true &&
+            securityNotice?.kind !== 'blocked'
+          ) {
+            await semanticChatCache.store(cacheScope, cacheVector, {
+              answer: content,
+              citations: usedCitations,
+              retrievalDebug,
+              ...(securityNotice ? { securityNotice } : {}),
+            });
+          }
           for (const result of writeResults) {
             if (result.status === 'rejected') {
               logger.error(

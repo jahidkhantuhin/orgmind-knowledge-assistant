@@ -7,6 +7,7 @@ import {
 } from '@orgmind/shared';
 import { env } from '../../config/env.js';
 import { getDatabase } from '../../lib/connections.js';
+import { embeddingProvider } from './embedding.service.js';
 import { CHUNKS_VECTOR_INDEX_NAME } from '../../db/search-index-definitions.js';
 import {
   buildHybridRetrievalPipeline,
@@ -195,6 +196,7 @@ export const chunksRepository = {
             filter: {
               $and: [
                 { orgId: organizationId },
+                { embeddingProfile: embeddingProvider.profile },
                 { $or: aclTokens.map((token) => ({ acl: token })) },
               ],
             },
@@ -238,6 +240,7 @@ export const chunksRepository = {
           queryVector,
           organizationId,
           aclTokens,
+          embeddingProfile: embeddingProvider.profile,
           limit,
           weights,
         }),

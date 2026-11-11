@@ -363,6 +363,7 @@ function ChatThread({
   const textTimerRef = useRef<number | null>(null);
   const [messages, setMessages] = useState<OrgMindMessage[]>([]);
   const [mode, setMode] = useState<'simple' | 'agentic'>('simple');
+  const [modelPreference, setModelPreference] = useState<'auto' | 'fast' | 'strong'>('auto');
   const [status, setStatus] = useState<'ready' | 'streaming'>('ready');
   const [streamError, setStreamError] = useState('');
   const activeRequest = useRef<AbortController | null>(null);
@@ -466,6 +467,7 @@ function ChatThread({
             organizationId,
             conversationId: conversation.id,
             mode,
+            modelPreference,
             messages: [userMessage],
           }),
         },
@@ -761,6 +763,20 @@ function ChatThread({
               Agentic
             </button>
           </div>
+          <label className="chat-model-select">
+            <span>Model</span>
+            <select
+              value={modelPreference}
+              onChange={(event) =>
+                setModelPreference(event.currentTarget.value as 'auto' | 'fast' | 'strong')
+              }
+              aria-label="Model selection"
+            >
+              <option value="auto">Auto</option>
+              <option value="fast">Fast</option>
+              <option value="strong">Strong</option>
+            </select>
+          </label>
         </header>
         <div
           className="chat-message-list"
@@ -838,6 +854,18 @@ function ChatThread({
                             </span>
                             <p>{part.data.message}</p>
                           </aside>
+                        );
+                      }
+                      if (part.type === 'data-observability' && part.data.cacheHit) {
+                        return (
+                          <span
+                            className="semantic-cache-indicator"
+                            key={`${message.id}-${index}`}
+                            title="This answer was reused from a semantically similar, access-checked response."
+                          >
+                            ✦ Cached answer · {Math.round((part.data.cacheSimilarity ?? 0) * 100)}%
+                            match
+                          </span>
                         );
                       }
                       if (part.type === 'data-agent-step') {

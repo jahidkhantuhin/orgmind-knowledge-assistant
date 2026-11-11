@@ -137,6 +137,7 @@ export function createDocumentIngestionProcessor(
           startOffset: chunk.startOffset,
           endOffset: chunk.endOffset,
           embedding: Array.from(embeddings[index] ?? []),
+          embeddingProfile: embeddingProvider.profile,
           createdAt: new Date(),
         }),
       );

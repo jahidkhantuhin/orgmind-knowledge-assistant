@@ -90,6 +90,7 @@ function createRetrievalService(dependencies: RetrievalDependencies) {
       query: string,
       organizationId: string,
       aclTokens: string[],
+      options?: { embedding?: number[]; embeddingLatencyMs?: number },
     ): Promise<RetrievalResult> {
       const startedAt = now();
       const settings = await dependencies.getSettings?.(organizationId);
@@ -110,10 +111,14 @@ function createRetrievalService(dependencies: RetrievalDependencies) {
         ? (dependencies.candidateCount ?? dependencies.limit)
         : dependencies.limit;
       const embeddingStartedAt = now();
-      const vector = await withSpan('chat.embedding', () => dependencies.embed(searchQuery), {
-        'orgmind.embedding.model': env.EMBEDDING_MODEL,
-      });
-      const embeddingMs = now() - embeddingStartedAt;
+      const vector =
+        options?.embedding ??
+        (await withSpan('chat.embedding', () => dependencies.embed(searchQuery), {
+          'orgmind.embedding.model': env.EMBEDDING_MODEL,
+        }));
+      const embeddingMs = options?.embedding
+        ? (options.embeddingLatencyMs ?? 0)
+        : now() - embeddingStartedAt;
       const searchStartedAt = now();
       const results = await withSpan(
         'mongodb.search',
@@ -227,7 +232,7 @@ function createRetrievalService(dependencies: RetrievalDependencies) {
           embedding: embeddingMs,
           search: searchMs,
           rerank: rerankMs,
-          total: now() - startedAt,
+          total: now() - startedAt + (options?.embedding ? embeddingMs : 0),
         },
         context: citations
           .map(

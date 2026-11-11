@@ -11,10 +11,12 @@ export function buildHybridRetrievalPipeline(input: {
   queryVector: readonly number[];
   organizationId: string;
   aclTokens: string[];
+  embeddingProfile?: string;
   limit: number;
   weights: HybridRetrievalWeights;
 }): Document[] {
   const candidateLimit = Math.max(100, input.limit * 20);
+  const embeddingProfile = input.embeddingProfile ?? 'google:gemini-embedding-001:768';
   return [
     {
       $rankFusion: {
@@ -31,6 +33,7 @@ export function buildHybridRetrievalPipeline(input: {
                   filter: {
                     $and: [
                       { orgId: input.organizationId },
+                      { embeddingProfile },
                       { $or: input.aclTokens.map((token) => ({ acl: token })) },
                     ],
                   },
@@ -45,6 +48,7 @@ export function buildHybridRetrievalPipeline(input: {
                     must: [{ text: { query: input.query, path: 'text' } }],
                     filter: [
                       { equals: { path: 'orgId', value: input.organizationId } },
+                      { equals: { path: 'embeddingProfile', value: embeddingProfile } },
                       {
                         compound: {
                           should: input.aclTokens.map((token) => ({

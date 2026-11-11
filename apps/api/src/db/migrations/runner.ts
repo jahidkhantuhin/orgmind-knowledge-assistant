@@ -111,6 +111,14 @@ export async function runMigrations(): Promise<void> {
   await applyMigration(migrations, '013-security-audit-logs', () =>
     auditLogsRepository.ensureIndexes(),
   );
+  await applyMigration(migrations, '014-chunk-embedding-profiles', async () => {
+    await database
+      .collection('chunks')
+      .updateMany(
+        { embeddingProfile: { $exists: false } },
+        { $set: { embeddingProfile: 'google:gemini-embedding-001:768' } },
+      );
+  });
 }
 
 async function applyMigration(

@@ -395,6 +395,8 @@ export const ChatObservabilitySchema = z.object({
   outputTokens: z.number().int().nonnegative().default(0),
   totalTokens: z.number().int().nonnegative().default(0),
   estimatedCostUsd: z.number().nonnegative().default(0),
+  cacheHit: z.boolean().optional(),
+  cacheSimilarity: z.number().min(0).max(1).optional(),
   latencyMs: z.object({
     retrieval: z.number().nonnegative().default(0),
     embedding: z.number().nonnegative().default(0),
@@ -449,6 +451,7 @@ export const ChatRequestSchema = z.object({
   organizationId: z.string().min(1),
   conversationId: z.string().uuid(),
   mode: z.enum(['simple', 'agentic']).default('simple'),
+  modelPreference: z.enum(['auto', 'fast', 'strong']).default('auto'),
   messages: z.array(z.unknown()).min(1).max(40),
 });
 
@@ -464,6 +467,7 @@ export const DocumentChunkSchema = z.object({
   startOffset: z.number().int().nonnegative(),
   endOffset: z.number().int().positive(),
   embedding: z.array(z.number().finite()).min(1),
+  embeddingProfile: z.string().min(1).optional(),
   createdAt: z.date(),
 });
 export type DocumentChunk = z.infer<typeof DocumentChunkSchema>;
@@ -473,6 +477,7 @@ export const DocumentChunkPreviewSchema = DocumentChunkSchema.omit({
   collectionId: true,
   acl: true,
   embedding: true,
+  embeddingProfile: true,
   createdAt: true,
 });
 export type DocumentChunkPreview = z.infer<typeof DocumentChunkPreviewSchema>;

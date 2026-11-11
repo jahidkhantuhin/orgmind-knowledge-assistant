@@ -36,10 +36,23 @@ const EnvSchema = z
       .max(12 * 1024 * 1024)
       .default(3 * 1024 * 1024),
     GOOGLE_API_KEY: z.string().default(''),
+    CHAT_PROVIDER: z.enum(['google', 'ollama']).default('google'),
+    OLLAMA_BASE_URL: z.url().default('http://localhost:11434'),
     OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default(''),
     GEMINI_INPUT_COST_USD_PER_MILLION_TOKENS: z.coerce.number().min(0).default(0.3),
     GEMINI_OUTPUT_COST_USD_PER_MILLION_TOKENS: z.coerce.number().min(0).default(2.5),
     CHAT_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
+    CHAT_FAST_MODEL: z.string().default(''),
+    CHAT_STRONG_MODEL: z.string().min(1).default('gemini-3.8-flash'),
+    GEMINI_STRONG_INPUT_COST_USD_PER_MILLION_TOKENS: z.coerce.number().min(0).default(0.75),
+    GEMINI_STRONG_OUTPUT_COST_USD_PER_MILLION_TOKENS: z.coerce.number().min(0).default(3.75),
+    CHAT_SEMANTIC_CACHE_ENABLED: z
+      .enum(['true', 'false'])
+      .default('true')
+      .transform((value) => value === 'true'),
+    CHAT_SEMANTIC_CACHE_THRESHOLD: z.coerce.number().min(0).max(1).default(0.94),
+    CHAT_SEMANTIC_CACHE_TTL_SECONDS: z.coerce.number().int().min(60).max(86_400).default(600),
+    CHAT_SEMANTIC_CACHE_MAX_ENTRIES: z.coerce.number().int().min(1).max(1_000).default(200),
     CHAT_TOP_K: z.coerce.number().int().min(1).max(20).default(5),
     CHAT_MIN_RELEVANCE_SCORE: z.coerce.number().min(0).max(1).default(0.45),
     CHAT_RETRIEVAL_STRATEGY: z.enum(['vector', 'hybrid']).default('hybrid'),
@@ -69,6 +82,7 @@ const EnvSchema = z
     CONTEXT_ENRICHMENT_MODEL: z.string().min(1).default('gemini-3.5-flash-lite'),
     CONTEXT_ENRICHMENT_CACHE_TTL_DAYS: z.coerce.number().int().min(1).max(3650).default(180),
     EMBEDDING_MODEL: z.string().min(1).default('gemini-embedding-001'),
+    EMBEDDING_PROVIDER: z.enum(['google', 'ollama']).default('google'),
     EMBEDDING_DIMENSIONS: z.coerce
       .number()
       .int()

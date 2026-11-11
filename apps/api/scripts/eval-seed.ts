@@ -87,6 +87,7 @@ try {
           startOffset: chunk.startOffset,
           endOffset: chunk.endOffset,
           embedding: Array.from(vector),
+          embeddingProfile: embeddingProvider.profile,
           createdAt: now,
         });
       });

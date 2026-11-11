@@ -16,6 +16,7 @@ type FixtureChunk = {
   collectionId: string;
   acl: string[];
   documentId: string;
+  embeddingProfile: string;
   chunkIndex: number;
   text: string;
   headingPath: string[];
@@ -72,6 +73,7 @@ describe('MongoDB hybrid retrieval integration', () => {
           collectionId: 'default',
           acl: ['user:user-1'],
           documentId: randomUUID(),
+          embeddingProfile: `google:${env.EMBEDDING_MODEL}:${dimensions}`,
           chunkIndex: 0,
           text: 'JavaScript object property access uses dot notation or bracket notation.',
           headingPath: ['JavaScript', 'Objects'],
@@ -83,6 +85,7 @@ describe('MongoDB hybrid retrieval integration', () => {
           collectionId: 'default',
           acl: ['group:team-1'],
           documentId: randomUUID(),
+          embeddingProfile: `google:${env.EMBEDDING_MODEL}:${dimensions}`,
           chunkIndex: 1,
           text: 'A value can contain named fields that are read through a key.',
           headingPath: ['Data structures'],
@@ -94,6 +97,7 @@ describe('MongoDB hybrid retrieval integration', () => {
           collectionId: 'default',
           acl: ['user:user-1'],
           documentId: randomUUID(),
+          embeddingProfile: `google:${env.EMBEDDING_MODEL}:${dimensions}`,
           chunkIndex: 0,
           text: 'JavaScript object property access uses a key.',
           headingPath: [],
@@ -129,6 +133,7 @@ describe('MongoDB hybrid retrieval integration', () => {
               ),
               organizationId,
               aclTokens,
+              embeddingProfile: `google:${env.EMBEDDING_MODEL}:${dimensions}`,
               limit: 5,
               weights: { vector: 0.7, keyword: 0.3 },
             }),
