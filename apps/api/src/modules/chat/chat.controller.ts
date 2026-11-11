@@ -11,6 +11,7 @@ import {
   RenameConversationSchema,
   type RetrievalDebugChunk,
   type ChatObservability,
+  type SecurityNotice,
 } from '@orgmind/shared';
 import {
   createUIMessageStream,
@@ -24,7 +25,11 @@ import { env } from '../../config/env.js';
 import { logger } from '../../lib/logger.js';
 import { chatRepository } from './chat.repository.js';
 import { chatModelProvider } from './chat-model.provider.js';
-import { createAgenticRetrievalService, retrievalService } from './retrieval.service.js';
+import {
+  createAgenticRetrievalService,
+  retrievalService,
+  type RetrievalResult,
+} from './retrieval.service.js';
 import { LOW_CONFIDENCE_ANSWER, buildGroundedSystemPrompt } from './prompt.builder.js';
 import { aclTokensForPrincipal } from '../documents/document-acl.js';
 import { documentsRepository } from '../documents/documents.repository.js';
@@ -32,6 +37,15 @@ import { activeTraceId, withSpan } from '../../lib/telemetry.js';
 import { estimateTokenCostUsd } from './usage-metrics.js';
 import { createAgenticRagService } from './agentic-rag.service.js';
 import type { AgentStep } from './agentic-rag.graph.js';
+import { auditLogsRepository } from '../audit/audit-logs.repository.js';
+import {
+  createPiiRedactionTransform,
+  looksLikePromptInjection,
+  redactPii,
+  secureAssistantAnswer,
+  secureRetrievedEvidence,
+  securityNoticeFor,
+} from './security-guardrails.js';
 
 function routeParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -57,6 +71,7 @@ function toMessageResponse(record: Awaited<ReturnType<typeof chatRepository.addM
     citations: citationsReferencedInAnswer(record.content, record.citations),
     retrievalDebug: record.retrievalDebug,
     observability: record.observability,
+    securityNotice: record.securityNotice,
     createdAt: record.createdAt.toISOString(),
   });
 }
@@ -263,6 +278,35 @@ export const streamChatController: RequestHandler = async (req, res) => {
       return;
     }
 
+    const requester = req.authSession!.user;
+    const questionRedaction = env.CHAT_PII_REDACTION_ENABLED
+      ? redactPii(question)
+      : { text: question, count: 0 };
+    if (looksLikePromptInjection(question)) {
+      await auditLogsRepository
+        .record({
+          organizationId,
+          actorUserId: userId,
+          actorName: requester.name,
+          actorEmail: requester.email,
+          outcome: 'blocked',
+          question: questionRedaction.text,
+        })
+        .catch((error: unknown) =>
+          logger.error({ err: error }, 'Could not record a blocked chat request.'),
+        );
+      res.status(403).json({
+        error: {
+          code: 'SECURITY_BLOCKED',
+          message:
+            'This question appears to ask OrgMind to override its safety instructions. Rephrase it as a question about your workspace documents.',
+        },
+      });
+      return;
+    }
+    const safeQuestion = questionRedaction.text;
+    let securityNotice = securityNoticeFor(0, questionRedaction.count);
+
     if (!env.GOOGLE_API_KEY) {
       res.status(503).json({
         error: {
@@ -277,7 +321,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
       conversationId: conversation._id,
       userId,
       role: 'user',
-      content: question,
+      content: safeQuestion,
       citations: [],
     });
     const aclTokens = aclTokensForPrincipal(
@@ -291,17 +335,36 @@ export const streamChatController: RequestHandler = async (req, res) => {
       aclTokens,
     );
     const requestStartedAt = performance.now();
-    const retrieval =
-      parsed.data.mode === 'simple'
-        ? await retrievalService.retrieve(question, organizationId, aclTokens)
-        : undefined;
+    const auditDocuments = new Map<string, string>();
+    const collectAuditDocuments = (result: RetrievalResult) => {
+      for (const source of [...result.citations, ...result.debug]) {
+        if ('documentId' in source && source.documentId) {
+          auditDocuments.set(source.documentId, source.documentName);
+        }
+      }
+    };
+    let injectionPassagesBlocked = 0;
+    let piiValuesRedacted = questionRedaction.count;
+    let retrieval: RetrievalResult | undefined;
+    if (parsed.data.mode === 'simple') {
+      const rawRetrieval = await retrievalService.retrieve(safeQuestion, organizationId, aclTokens);
+      collectAuditDocuments(rawRetrieval);
+      const secured = secureRetrievedEvidence(rawRetrieval, env.CHAT_PII_REDACTION_ENABLED);
+      retrieval = secured.result;
+      injectionPassagesBlocked += secured.blockedPassages;
+      piiValuesRedacted += secured.redactedValues;
+      securityNotice = securityNoticeFor(injectionPassagesBlocked, piiValuesRedacted);
+    }
     const isLowConfidence = retrieval?.citations.length === 0;
     let citations = retrieval?.citations ?? [];
     let retrievalDebug = retrieval?.debug ?? [];
-    const modelMessages: ModelMessage[] = priorMessages.slice(-20).map((message) => ({
-      role: message.role,
-      content: message.content,
-    }));
+    const modelMessages: ModelMessage[] = priorMessages.slice(-20).map((message) => {
+      if (!env.CHAT_PII_REDACTION_ENABLED) return { role: message.role, content: message.content };
+      const redacted = redactPii(message.content);
+      piiValuesRedacted += redacted.count;
+      return { role: message.role, content: redacted.text };
+    });
+    securityNotice = securityNoticeFor(injectionPassagesBlocked, piiValuesRedacted);
     const responseMessageId = randomUUID();
     let finalObservability: ChatObservability | undefined;
     const stream = createUIMessageStream<
@@ -312,11 +375,13 @@ export const streamChatController: RequestHandler = async (req, res) => {
           'retrieval-debug': RetrievalDebugChunk[];
           observability: ChatObservability;
           'agent-step': AgentStep;
+          'security-notice': SecurityNotice;
         }
       >
     >({
       execute: async ({ writer }) => {
         writer.write({ type: 'start', messageId: responseMessageId });
+        if (securityNotice) writer.write({ type: 'data-security-notice', data: securityNotice });
         if (parsed.data.mode === 'simple') {
           writer.write({ type: 'data-citations', data: citations });
           writer.write({ type: 'data-retrieval-debug', data: retrieval?.debug ?? [] });
@@ -326,20 +391,37 @@ export const streamChatController: RequestHandler = async (req, res) => {
           const agentStartedAt = performance.now();
           const agenticRetrieval = createAgenticRetrievalService();
           const result = await createAgenticRagService({
-            retrieve: (query, orgId, tokens) => agenticRetrieval.retrieve(query, orgId, tokens),
+            retrieve: async (query, orgId, tokens) => {
+              const raw = await agenticRetrieval.retrieve(query, orgId, tokens);
+              collectAuditDocuments(raw);
+              const secured = secureRetrievedEvidence(raw, env.CHAT_PII_REDACTION_ENABLED);
+              injectionPassagesBlocked += secured.blockedPassages;
+              piiValuesRedacted += secured.redactedValues;
+              return secured.result;
+            },
             maxIterations: env.CHAT_AGENT_MAX_ITERATIONS,
             maxCostUsd: env.CHAT_AGENT_MAX_COST_USD,
             emit: (step) => writer.write({ type: 'data-agent-step', data: step }),
           }).run({
-            question,
+            question: safeQuestion,
             organizationId,
             aclTokens,
           });
           citations = result.citations;
           retrievalDebug = result.debug;
+          securityNotice = securityNoticeFor(injectionPassagesBlocked, piiValuesRedacted);
+          const securedAnswer = secureAssistantAnswer(
+            result.answer || LOW_CONFIDENCE_ANSWER,
+            env.CHAT_PII_REDACTION_ENABLED,
+          );
+          if (securedAnswer.notice) {
+            piiValuesRedacted += 1;
+            securityNotice = securityNoticeFor(injectionPassagesBlocked, piiValuesRedacted);
+          }
+          if (securityNotice) writer.write({ type: 'data-security-notice', data: securityNotice });
           writer.write({ type: 'data-citations', data: citations });
           writer.write({ type: 'data-retrieval-debug', data: retrievalDebug });
-          const answer = result.answer || LOW_CONFIDENCE_ANSWER;
+          const answer = securedAnswer.answer;
           const agentElapsed = performance.now() - agentStartedAt;
           const traceId = activeTraceId();
           observability = {
@@ -393,6 +475,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
           return;
         }
         const generationStartedAt = performance.now();
+        let outputPiiRedacted = false;
         observability = await withSpan(
           'chat.generation',
           async () => {
@@ -401,6 +484,13 @@ export const streamChatController: RequestHandler = async (req, res) => {
               system: `${buildGroundedSystemPrompt(citations)}\n\nRetrieved passages:\n${retrieval!.context}`,
               messages: modelMessages,
               maxOutputTokens: 900,
+              ...(env.CHAT_PII_REDACTION_ENABLED
+                ? {
+                    experimental_transform: createPiiRedactionTransform(() => {
+                      outputPiiRedacted = true;
+                    }),
+                  }
+                : {}),
               onError: ({ error }) => logger.error({ err: error }, 'Chat model stream failed'),
             });
             writer.merge(
@@ -411,6 +501,14 @@ export const streamChatController: RequestHandler = async (req, res) => {
               }),
             );
             const usage = await result.totalUsage;
+            if (outputPiiRedacted) {
+              piiValuesRedacted += 1;
+              securityNotice = {
+                kind: 'redacted',
+                message: 'Sensitive-looking details were masked from this answer.',
+              };
+              writer.write({ type: 'data-security-notice', data: securityNotice });
+            }
             const inputTokens = usage.inputTokens ?? 0;
             const outputTokens = usage.outputTokens ?? 0;
             const generation = performance.now() - generationStartedAt;
@@ -454,18 +552,50 @@ export const streamChatController: RequestHandler = async (req, res) => {
             .filter((part) => part.type === 'text')
             .map((part) => (part.type === 'text' ? part.text : ''))
             .join('');
-          if (!content) return;
           const usedCitations = citationsReferencedInAnswer(content, citations);
-          await chatRepository.addMessage({
-            organizationId,
-            conversationId: conversation._id,
-            userId,
-            role: 'assistant',
-            content,
-            citations: usedCitations,
-            retrievalDebug,
-            ...(finalObservability ? { observability: finalObservability } : {}),
-          });
+          const auditOutcome = !content
+            ? 'failed'
+            : securityNotice?.kind === 'blocked'
+              ? 'blocked'
+              : securityNotice
+                ? 'redacted'
+                : 'answered';
+          const writes: Promise<unknown>[] = [
+            auditLogsRepository.record({
+              organizationId,
+              actorUserId: userId,
+              actorName: requester.name,
+              actorEmail: requester.email,
+              outcome: auditOutcome,
+              question: safeQuestion,
+              documentIds: [...auditDocuments.keys()],
+              documentNames: [...auditDocuments.values()],
+            }),
+          ];
+          if (content) {
+            writes.push(
+              chatRepository.addMessage({
+                organizationId,
+                conversationId: conversation._id,
+                userId,
+                role: 'assistant',
+                content,
+                citations: usedCitations,
+                retrievalDebug,
+                ...(finalObservability ? { observability: finalObservability } : {}),
+                ...(securityNotice ? { securityNotice } : {}),
+              }),
+            );
+          }
+          const writeResults = await Promise.allSettled(writes);
+          for (const result of writeResults) {
+            if (result.status === 'rejected') {
+              logger.error(
+                { err: result.reason, conversationId: conversation._id },
+                'Could not persist chat security or message records.',
+              );
+            }
+          }
         } catch (error) {
           logger.error(
             { err: error, conversationId: conversation._id },
@@ -476,7 +606,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
     });
     if (conversation.title === 'New conversation') {
       const title =
-        question
+        safeQuestion
           .split(/[.!?\n]/, 1)[0]
           ?.trim()
           .slice(0, 58) || 'New conversation';

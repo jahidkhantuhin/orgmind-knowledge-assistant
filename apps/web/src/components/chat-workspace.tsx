@@ -10,11 +10,13 @@ import {
   ConversationMessagesResponseSchema,
   ConversationSummarySchema,
   ChatObservabilitySchema,
+  SecurityNoticeSchema,
   type ChatCitation,
   type ChatObservability,
   type RetrievalDebugChunk,
   type ConversationSummary,
   type MembershipRole,
+  type SecurityNotice,
 } from '@orgmind/shared';
 import { WorkspaceNavigation } from './workspace-navigation';
 import { useFeedback } from './feedback-provider';
@@ -28,6 +30,7 @@ type OrgMindMessage = {
     | { type: 'data-citations'; data: ChatCitation[] }
     | { type: 'data-retrieval-debug'; data: RetrievalDebugChunk[] }
     | { type: 'data-observability'; data: ChatObservability }
+    | { type: 'data-security-notice'; data: SecurityNotice }
     | { type: 'data-agent-step'; data: AgentTimelineStep }
   )[];
 };
@@ -47,6 +50,7 @@ function toUiMessages(
     citations: ChatCitation[];
     retrievalDebug: RetrievalDebugChunk[];
     observability?: ChatObservability | undefined;
+    securityNotice?: SecurityNotice | undefined;
   }[],
 ): OrgMindMessage[] {
   return messages.map((message) => ({
@@ -62,6 +66,9 @@ function toUiMessages(
         : []),
       ...(message.role === 'assistant' && message.observability
         ? [{ type: 'data-observability' as const, data: message.observability }]
+        : []),
+      ...(message.role === 'assistant' && message.securityNotice
+        ? [{ type: 'data-security-notice' as const, data: message.securityNotice }]
         : []),
     ],
   }));
@@ -488,6 +495,7 @@ function ChatThread({
       let streamedCitations: ChatCitation[] = [];
       let streamedRetrievalDebug: RetrievalDebugChunk[] = [];
       let streamedObservability: ChatObservability | undefined;
+      let streamedSecurityNotice: SecurityNotice | undefined;
       let citationsFinalized = false;
       let streamFailed = false;
       let done = false;
@@ -578,6 +586,21 @@ function ChatThread({
           } else if (part.type === 'data-observability') {
             const parsed = ChatObservabilitySchema.safeParse(part.data);
             streamedObservability = parsed.success ? parsed.data : undefined;
+          } else if (part.type === 'data-security-notice') {
+            const parsed = SecurityNoticeSchema.safeParse(part.data);
+            if (parsed.success) {
+              streamedSecurityNotice = parsed.data;
+              setMessages((current) =>
+                current.map((message) => {
+                  if (message.id !== responseMessageId) return message;
+                  const parts = [
+                    ...message.parts.filter((item) => item.type !== 'data-security-notice'),
+                    { type: 'data-security-notice' as const, data: parsed.data },
+                  ];
+                  return { ...message, parts };
+                }),
+              );
+            }
           } else if (
             part.type === 'data-agent-step' &&
             typeof part.data === 'object' &&
@@ -651,7 +674,8 @@ function ChatThread({
                   (item) =>
                     item.type !== 'data-citations' &&
                     item.type !== 'data-retrieval-debug' &&
-                    item.type !== 'data-observability',
+                    item.type !== 'data-observability' &&
+                    item.type !== 'data-security-notice',
                 );
                 if (usedCitations.length > 0) {
                   parts.push({ type: 'data-citations', data: usedCitations });
@@ -661,6 +685,9 @@ function ChatThread({
                 }
                 if (streamedObservability) {
                   parts.push({ type: 'data-observability', data: streamedObservability });
+                }
+                if (streamedSecurityNotice) {
+                  parts.push({ type: 'data-security-notice', data: streamedSecurityNotice });
                 }
                 return {
                   ...message,
@@ -798,6 +825,20 @@ function ChatThread({
                             ))}
                           </div>
                         ) : null;
+                      }
+                      if (part.type === 'data-security-notice') {
+                        return (
+                          <aside
+                            className={`chat-security-notice is-${part.data.kind}`}
+                            key={`${message.id}-${index}`}
+                            role="status"
+                          >
+                            <span aria-hidden="true">
+                              {part.data.kind === 'blocked' ? '⛨' : '✦'}
+                            </span>
+                            <p>{part.data.message}</p>
+                          </aside>
+                        );
                       }
                       if (part.type === 'data-agent-step') {
                         const step = part.data;

@@ -16,6 +16,7 @@ import {
 } from '../../modules/organizations/organizations.repository.js';
 import { workspaceInvitationsRepository } from '../../modules/organizations/workspace-invitations.repository.js';
 import { evalRunsRepository } from '../../modules/evals/eval-runs.repository.js';
+import { auditLogsRepository } from '../../modules/audit/audit-logs.repository.js';
 
 export async function runMigrations(): Promise<void> {
   const database = getDatabase();
@@ -106,6 +107,9 @@ export async function runMigrations(): Promise<void> {
   await applyMigration(migrations, '011-evaluation-runs', () => evalRunsRepository.ensureIndexes());
   await applyMigration(migrations, '012-message-observability', () =>
     chatRepository.ensureUsageIndex(),
+  );
+  await applyMigration(migrations, '013-security-audit-logs', () =>
+    auditLogsRepository.ensureIndexes(),
   );
 }
 

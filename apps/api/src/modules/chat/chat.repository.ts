@@ -116,6 +116,7 @@ export const chatRepository = {
     record: Omit<ChatMessageRecord, '_id' | 'createdAt' | 'retrievalDebug'> & {
       retrievalDebug?: ChatMessageRecord['retrievalDebug'];
       observability?: ChatMessageRecord['observability'];
+      securityNotice?: ChatMessageRecord['securityNotice'];
     },
   ): Promise<ChatMessageRecord> {
     const message = parseMessage({

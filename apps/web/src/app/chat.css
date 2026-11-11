@@ -366,6 +366,34 @@
 .chat-message-content p:last-child {
   margin-bottom: 0;
 }
+.chat-security-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 13px 0 4px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #c58421 28%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, #f3bd58 10%, var(--surface));
+  color: var(--foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.chat-security-notice > span {
+  flex: 0 0 auto;
+  color: #c58421;
+  font-size: 15px;
+}
+.chat-security-notice p {
+  margin: 0;
+}
+.chat-security-notice.is-blocked {
+  border-color: color-mix(in srgb, #c64747 30%, var(--line));
+  background: color-mix(in srgb, #d75c5c 9%, var(--surface));
+}
+.chat-security-notice.is-blocked > span {
+  color: #c64747;
+}
 .citation-chips {
   margin-top: 13px;
   display: flex;

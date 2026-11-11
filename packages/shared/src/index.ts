@@ -168,6 +168,49 @@ export const MigrationDocumentSchema = z.object({
 });
 export type MigrationDocument = z.infer<typeof MigrationDocumentSchema>;
 
+export const SecurityNoticeSchema = z.object({
+  kind: z.enum(['redacted', 'blocked']),
+  message: z.string().min(1).max(240),
+});
+export type SecurityNotice = z.infer<typeof SecurityNoticeSchema>;
+
+export const AuditLogOutcomeSchema = z.enum(['answered', 'redacted', 'blocked', 'failed']);
+export type AuditLogOutcome = z.infer<typeof AuditLogOutcomeSchema>;
+
+export const AuditLogRecordSchema = z.object({
+  _id: z.string().uuid(),
+  organizationId: z.string().min(1),
+  actorUserId: z.string().min(1),
+  actorName: z.string().min(1).max(120),
+  actorEmail: z.email(),
+  action: z.literal('chat'),
+  outcome: AuditLogOutcomeSchema,
+  question: z.string().min(1).max(2_000),
+  documentIds: z.array(z.string().min(1)).max(100),
+  documentNames: z.array(z.string().min(1).max(255)).max(100),
+  createdAt: z.date(),
+});
+export type AuditLogRecord = z.infer<typeof AuditLogRecordSchema>;
+
+export const AuditLogEntrySchema = AuditLogRecordSchema.extend({
+  id: z.string().uuid(),
+  createdAt: z.string().datetime(),
+}).omit({ _id: true });
+export type AuditLogEntry = z.infer<typeof AuditLogEntrySchema>;
+
+export const AuditLogFilterSchema = z.object({
+  q: z.string().trim().max(120).default(''),
+  outcome: AuditLogOutcomeSchema.optional(),
+  from: z.iso.datetime().optional(),
+  to: z.iso.datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+
+export const AuditLogResponseSchema = z.object({
+  logs: z.array(AuditLogEntrySchema),
+  hasMore: z.boolean(),
+});
+
 export const DocumentExtensionSchema = z.enum(['pdf', 'docx', 'md', 'txt']);
 export type DocumentExtension = z.infer<typeof DocumentExtensionSchema>;
 
@@ -373,6 +416,7 @@ export const ChatMessageRecordSchema = z.object({
   citations: z.array(ChatCitationSchema).default([]),
   retrievalDebug: z.array(RetrievalDebugChunkSchema).default([]),
   observability: ChatObservabilitySchema.optional(),
+  securityNotice: SecurityNoticeSchema.optional(),
   createdAt: z.date(),
 });
 export type ChatMessageRecord = z.infer<typeof ChatMessageRecordSchema>;
@@ -384,6 +428,7 @@ export const ChatMessageResponseSchema = z.object({
   citations: z.array(ChatCitationSchema),
   retrievalDebug: z.array(RetrievalDebugChunkSchema).default([]),
   observability: ChatObservabilitySchema.optional(),
+  securityNotice: SecurityNoticeSchema.optional(),
   createdAt: z.string().datetime(),
 });
 export type ChatMessageResponse = z.infer<typeof ChatMessageResponseSchema>;

@@ -40,6 +40,9 @@ import {
 } from './retrieval-settings.controller.js';
 import { listEvalRunsController } from '../evals/eval-runs.controller.js';
 import { getOrganizationUsageController } from '../usage/usage.controller.js';
+import { listAuditLogsController } from '../audit/audit-logs.controller.js';
+import { chatRateLimiter, ensureRateLimitStore } from '../../middleware/rate-limit.js';
+import { rejectMongoOperatorKeys } from '../../middleware/reject-nosql-operators.js';
 
 export const organizationsRouter = Router();
 
@@ -167,6 +170,8 @@ organizationsRouter.post(
   '/:organizationId/chat',
   requireAuth,
   requireOrganizationRole(['admin', 'member', 'viewer']),
+  ensureRateLimitStore,
+  chatRateLimiter,
   streamChatController,
 );
 organizationsRouter.get(
@@ -187,6 +192,12 @@ organizationsRouter.get(
   requireOrganizationRole(['admin']),
   getOrganizationUsageController,
 );
+organizationsRouter.get(
+  '/:organizationId/audit-logs',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  listAuditLogsController,
+);
 organizationsRouter.patch(
   '/:organizationId/chat/retrieval-settings',
   requireAuth,
@@ -205,6 +216,7 @@ organizationsRouter.post(
   requireAuth,
   requireOrganizationRole(['admin', 'member']),
   uploadDocumentFile,
+  rejectMongoOperatorKeys,
   uploadDocumentController,
 );
 organizationsRouter.get(

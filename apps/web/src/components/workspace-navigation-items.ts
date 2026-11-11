@@ -6,7 +6,8 @@ export type WorkspaceNavigationSection =
   | 'knowledge'
   | 'members'
   | 'evals'
-  | 'usage';
+  | 'usage'
+  | 'audit';
 
 export type WorkspaceNavigationItem = {
   href: string;
@@ -29,6 +30,7 @@ export const workspaceNavigationItems: WorkspaceNavigationItem[] = [
   },
   { href: '/settings/evals', label: 'Evals', section: 'evals', icon: '▥', adminOnly: true },
   { href: '/settings/usage', label: 'Usage', section: 'usage', icon: '◷', adminOnly: true },
+  { href: '/settings/audit', label: 'Audit log', section: 'audit', icon: '▦', adminOnly: true },
 ];
 
 export function getWorkspaceNavigationItems(role: MembershipRole) {

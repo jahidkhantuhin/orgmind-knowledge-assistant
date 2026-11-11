@@ -279,6 +279,9 @@ importers:
       express:
         specifier: 5.3.0
         version: 5.3.0(supports-color@7.2.0)
+      express-rate-limit:
+        specifier: 8.7.1
+        version: 8.7.1(express@5.3.0(supports-color@7.2.0))(supports-color@7.2.0)
       helmet:
         specifier: 8.1.0
         version: 8.1.0
@@ -300,6 +303,9 @@ importers:
       pino-http:
         specifier: 11.0.0
         version: 11.0.0
+      rate-limit-redis:
+        specifier: 6.0.1
+        version: 6.0.1(express-rate-limit@8.7.1(express@5.3.0(supports-color@7.2.0))(supports-color@7.2.0))
       redis:
         specifier: 5.10.0
         version: 5.10.0
@@ -4122,6 +4128,15 @@ packages:
       }
     engines: { node: '>=12.0.0' }
 
+  express-rate-limit@8.7.1:
+    resolution:
+      {
+        integrity: sha512-2FXbqkygil3mZiXzEtM0IjE/UBmBNot0J1GEVrJT4JbrvwOSoEtqtO+wHbiMQELWe1eNvHoYRg2dkjOid+6JkA==,
+      }
+    engines: { node: '>= 16' }
+    peerDependencies:
+      express: '>= 4.11'
+
   express@5.3.0:
     resolution:
       {
@@ -4601,6 +4616,13 @@ packages:
         integrity: sha512-4gd7VpWNQNB4UKKCFFVcp1AVv+FMOgs9NKzjHKusc8jTMhd5eL1NqQqOpE0KzMds804/yHlglp3uxgluOqAPLw==,
       }
     engines: { node: '>= 0.4' }
+
+  ip-address@10.7.6:
+    resolution:
+      {
+        integrity: sha512-00LYkM6byILa9eQIx6qoaXCM40xTLd56AZ4vyaPW3YTyb49VZYPo5xsiAq4tuQ54GH4R7gVdYScJ1B7B77PuTg==,
+      }
+    engines: { node: '>= 12' }
 
   ioredis@5.11.1:
     resolution:
@@ -5923,6 +5945,15 @@ packages:
       {
         integrity: sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A==,
       }
+
+  rate-limit-redis@6.0.1:
+    resolution:
+      {
+        integrity: sha512-qys7ulbh5X4Bohfjm6BXFWBiyzK6r5eGdFghPWZfJwggnDFTDwCIRq1u7tmN50vLTp4Kbe1h/ZAuBOn/hVpjtQ==,
+      }
+    engines: { node: '>= 16' }
+    peerDependencies:
+      express-rate-limit: '>= 8.6.0'
 
   quick-format-unescaped@4.0.4:
     resolution:
@@ -9315,6 +9346,14 @@ snapshots:
 
   expect-type@1.4.0: {}
 
+  express-rate-limit@8.7.1(express@5.3.0(supports-color@7.2.0))(supports-color@7.2.0):
+    dependencies:
+      debug: 4.4.3(supports-color@7.2.0)
+      express: 5.3.0(supports-color@7.2.0)
+      ip-address: 10.7.6
+    transitivePeerDependencies:
+      - supports-color
+
   express@5.3.0(supports-color@7.2.0):
     dependencies:
       accepts: 2.0.0
@@ -9644,6 +9683,8 @@ snapshots:
       - supports-color
 
   ipaddr.js@1.9.1: {}
+
+  ip-address@10.7.6: {}
 
   is-array-buffer@3.0.5:
     dependencies:
@@ -10377,6 +10418,10 @@ snapshots:
   queue-microtask@1.2.3: {}
 
   quick-format-unescaped@4.0.4: {}
+
+  rate-limit-redis@6.0.1(express-rate-limit@8.7.1(express@5.3.0(supports-color@7.2.0))(supports-color@7.2.0)):
+    dependencies:
+      express-rate-limit: 8.7.1(express@5.3.0(supports-color@7.2.0))(supports-color@7.2.0)
 
   range-parser@1.3.0: {}
 

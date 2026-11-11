@@ -9,6 +9,22 @@ export const redisClient = createClient({
 });
 redisClient.on('error', () => undefined);
 
+let redisConnection: Promise<void> | undefined;
+
+export async function ensureRedisConnected(): Promise<void> {
+  if (redisClient.isReady) return;
+  if (!redisClient.isOpen) {
+    redisConnection ??= redisClient
+      .connect()
+      .then(() => undefined)
+      .finally(() => {
+        redisConnection = undefined;
+      });
+    await redisConnection;
+  }
+  if (!redisClient.isReady) throw new Error('Redis is not ready.');
+}
+
 export function getDatabase() {
   const name = env.NODE_ENV === 'test' ? env.TEST_MONGODB_DATABASE : env.MONGODB_DATABASE;
   return mongoClient.db(name);
@@ -25,7 +41,7 @@ export async function checkMongo(): Promise<boolean> {
 
 export async function checkRedis(): Promise<boolean> {
   try {
-    if (!redisClient.isOpen) await redisClient.connect();
+    await ensureRedisConnected();
     await redisClient.ping();
     return true;
   } catch {

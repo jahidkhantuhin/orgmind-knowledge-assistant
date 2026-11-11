@@ -7,6 +7,7 @@
 @import './feedback.css';
 @import './settings/evals/evals.css';
 @import './settings/usage/usage.css';
+@import './settings/audit/audit.css';
 
 :root {
   color-scheme: light;
