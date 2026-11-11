@@ -35,7 +35,7 @@ describe('evaluation runner', () => {
     });
 
     expect(run.passed).toBe(true);
-    expect(run.variants).toHaveLength(3);
+    expect(run.variants).toHaveLength(4);
     expect(run.variants[0]?.metrics.recallAtK).toBe(1);
     expect(run.variants[0]?.metrics.mrr).toBe(0.5);
     expect(run.variants[1]?.metrics.mrr).toBe(1);

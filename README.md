@@ -104,7 +104,7 @@ The evaluation harness compares three retrieval strategies against a small golde
 
 Evaluation fixtures create two visible Markdown documents in the selected workspace. Use a dedicated workspace so these test policies do not mix with ordinary company documents. Find the workspace `_id` in MongoDB Compass under `organizations` and set it as `EVAL_ORGANIZATION_ID` in `.env`. To evaluate a different workspace, a developer changes this value and runs the CLI again; the configured seed-admin account must be an admin in that workspace. This is a developer-operated workflow, not a per-workspace self-service evaluation feature. Ensure `GOOGLE_API_KEY` and `COHERE_API_KEY` are configured; evaluation makes model and reranker requests and can consume their quotas.
 
-The evaluator paces Gemini answer-generation and judge requests by at least `EVAL_GEMINI_REQUEST_INTERVAL_MS` milliseconds (default `7000`, about 8.6 request starts per minute) to reduce HTTP 429 rate-limit failures on the Gemini free tier. The golden set currently needs up to 18 Gemini requests per run, so runs take longer with this pacing. Other Gemini requests from the same project share its quota; avoid running another evaluation or sending substantial chat traffic at the same time. If you still hit quota limits, wait for the quota window to recover or increase the interval.
+The evaluator paces Gemini model requests by at least `EVAL_GEMINI_REQUEST_INTERVAL_MS` milliseconds (default `7000`, about 8.6 request starts per minute) to reduce HTTP 429 rate-limit failures on the Gemini free tier. Agentic evaluation can make up to six model requests per question before any additional retry (routing, two relevance checks, answer, groundedness check, and judge), so the complete run can take longer than earlier strategy comparisons. Actual calls vary by route and evidence. Other Gemini requests from the same project share its quota; avoid running another evaluation or sending substantial chat traffic at the same time. If you still hit quota limits, wait for the quota window to recover or increase the interval.
 
 ```powershell
 pnpm db:migrate
@@ -115,11 +115,12 @@ pnpm eval
 
 `pnpm eval:seed` uses the seed admin account to add/update the deterministic fixture documents. `pnpm eval` requires those documents and ready MongoDB Search/Vector Search indexes, evaluates the golden questions, saves JSON and Markdown reports under `packages/evals/reports/`, and stores the run for the dashboard. It exits nonzero if hybrid recall falls below `EVAL_MIN_RECALL_AT_K` (default `0.6`) or reranking drops recall by more than `EVAL_MAX_RERANK_RECALL_DROP` (default `0.1`).
 
-| Strategy        | Retrieval method                               | Recall@K    | MRR         | Groundedness | Answer relevance |
-| --------------- | ---------------------------------------------- | ----------- | ----------- | ------------ | ---------------- |
-| Naive vector    | MongoDB `$vectorSearch`                        | Run locally | Run locally | LLM judge    | LLM judge        |
-| Hybrid          | `$vectorSearch` + `$search` with `$rankFusion` | Run locally | Run locally | LLM judge    | LLM judge        |
-| Hybrid + rerank | Hybrid retrieval + Cohere Rerank API v2        | Run locally | Run locally | LLM judge    | LLM judge        |
+| Strategy        | Retrieval method                                                    | Recall@K    | MRR         | Groundedness | Answer relevance |
+| --------------- | ------------------------------------------------------------------- | ----------- | ----------- | ------------ | ---------------- |
+| Naive vector    | MongoDB `$vectorSearch`                                             | Run locally | Run locally | LLM judge    | LLM judge        |
+| Hybrid          | `$vectorSearch` + `$search` with `$rankFusion`                      | Run locally | Run locally | LLM judge    | LLM judge        |
+| Hybrid + rerank | Hybrid retrieval + Cohere Rerank API v2                             | Run locally | Run locally | LLM judge    | LLM judge        |
+| Agentic         | Rewrite, retrieve, grade, bounded retry, answer, groundedness check | Run locally | Run locally | LLM judge    | LLM judge        |
 
 ### Reading the evaluation results
 
@@ -132,7 +133,7 @@ Each metric is averaged over the three golden questions and displayed as a perce
 | Faithfulness / groundedness | Gemini judge score for whether answer claims are supported by retrieved text.                      | Average judge score was 5/5.                               |
 | Answer relevance            | Gemini judge score for whether the answer addresses the question and matches the reference answer. | Average judge score was 5/5.                               |
 
-The **Passed** badge checks only the configured recall thresholds: hybrid and hybrid + rerank must meet `EVAL_MIN_RECALL_AT_K`, and reranking must not reduce recall beyond `EVAL_MAX_RERANK_RECALL_DROP`. It does not require perfect judge scores. A 100% run is possible for this small, targeted three-question fixture set; treat it as a check of these examples, not a guarantee for real-world questions or documents.
+The **Passed** badge checks configured recall thresholds: hybrid and agentic must meet `EVAL_MIN_RECALL_AT_K`, and hybrid + rerank must meet that threshold without dropping more than `EVAL_MAX_RERANK_RECALL_DROP` compared with hybrid. It does not require perfect judge scores. A 100% run is possible for this small, targeted three-question fixture set; treat it as a check of these examples, not a guarantee for real-world questions or documents.
 
 No metric values are committed as a benchmark because they depend on the workspace's MongoDB indexes, configured model, and provider responses. The lightweight CI eval uses fixed in-memory fixtures and a recall regression threshold; it makes no Gemini or Cohere requests. Run `pnpm eval:smoke` locally to execute the same CI check.
 
@@ -205,6 +206,26 @@ Cost estimates use `GEMINI_INPUT_COST_USD_PER_MILLION_TOKENS` (default `0.3`) an
 OpenTelemetry spans are sent only when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. For local traces, start the optional Collector and apps with `docker compose --profile app up -d --build --wait`; the API exports OTLP/HTTP traces to the Collector, which prints them through its debug exporter. With the usual host-based `pnpm dev`, set `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` in `.env` and run `docker compose --profile app up -d otel-collector`. Leave it empty to disable exporting. The `app` profile starts API/web in Docker, so do not run the host dev servers concurrently.
 
 Verify persistence and role-gated Usage data by running `pnpm db:migrate`, asking a document-grounded chat question, then expanding **Usage & performance** under that answer and opening **Usage** as an admin. Compare the per-answer details with the workspace's 30-day totals and averages. The trace ID appears when tracing is enabled. To view exported traces, follow Collector logs with `docker compose --profile app logs --follow --tail=100 otel-collector`.
+
+## Step 11: Agentic RAG
+
+The Assistant offers **Simple** and **Agentic** modes; Simple remains the default. Agentic mode uses `@langchain/langgraph` to route conversational questions, rewrite or split factual questions into at most two searches, retrieve through the same organization and ACL-filtered MongoDB search, grade passage relevance, and perform a bounded broader-search retry when evidence is weak. It drafts an answer only when relevant evidence is found and runs a groundedness check before returning citations. If the answer is unsupported or no useful passages are found, it returns the existing “I don't know” response without citations.
+
+### Simple RAG and Agentic RAG compared
+
+| Aspect                  | Simple                                                                                                                          | Agentic                                                                                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Retrieval flow          | Runs the configured retrieval strategy, then drafts a grounded answer from the retrieved passages.                              | Routes the question, rewrites or splits searches, grades results, and can retry once within the configured iteration limit before drafting and checking the answer.                        |
+| Evidence handling       | Uses retrieval ranking and the grounded answer prompt; it does not run a separate relevance grader or final groundedness check. | Adds relevance grading and a final groundedness check; weak or unsupported evidence leads to the “I don't know” fallback without citations.                                                |
+| Expected answer quality | Works well for clear questions that match the wording and scope of available documents.                                         | Can help with ambiguous, multi-part, or poorly matched questions by broadening searches and checking evidence. This is an added safeguard, not a guarantee of correctness.                 |
+| Speed and model usage   | Usually faster and uses fewer model calls because it skips the agent routing, grading, retry, and verification stages.          | Usually slower and uses more model calls; it may spend additional time and quota to improve evidence selection and validation. Iteration and estimated-cost settings limit the added work. |
+| Access control          | Retrieval is scoped by workspace and the user's document ACL.                                                                   | Uses the same workspace and ACL-filtered retrieval, so the extra steps do not expand document access.                                                                                      |
+
+Choose **Simple** for routine, direct questions where speed matters. Choose **Agentic** when the question is harder to search or you want the extra evidence checks. Both modes can still miss relevant material or produce an imperfect answer; citations let you inspect the supporting passage.
+
+The live progress timeline is streamed to the chat as each graph step runs. `CHAT_AGENT_MAX_ITERATIONS` (default `2`, allowed `1`–`3`) caps retrieval passes. `CHAT_AGENT_MAX_COST_USD` (default `$0.05`) stops further model calls once recorded estimated cost reaches the limit; per-call output-token caps also bound model responses. Model usage and latency are included in the existing per-answer Usage & performance drawer. The cost limit is an estimated-cost guard, not a strict provider-side billing limit: provider charges can differ from configured token rates.
+
+The developer-operated `pnpm eval` now also compares Agentic against vector, hybrid, and hybrid + rerank on the same golden questions. Agentic must meet `EVAL_MIN_RECALL_AT_K`; the existing hybrid/rerank regression rule remains. Evaluation Agentic calls use the configured Gemini request pacing. To try it, open **Assistant**, choose **Agentic**, and ask a factual question covered by an uploaded document. The timeline should show the route, searches, relevance check, answer draft, and support check; the response should cite the retrieved source. The graph tests use mocked model/retrieval dependencies and make no provider calls. The deterministic CI smoke covers all four variants with fixtures; it is not a live quality benchmark. A live `pnpm eval` needs MongoDB Search/Vector Search and the evaluation seed documents available.
 
 ## Author
 

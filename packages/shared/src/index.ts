@@ -403,6 +403,7 @@ export const RenameConversationSchema = z.object({
 export const ChatRequestSchema = z.object({
   organizationId: z.string().min(1),
   conversationId: z.string().uuid(),
+  mode: z.enum(['simple', 'agentic']).default('simple'),
   messages: z.array(z.unknown()).min(1).max(40),
 });
 
@@ -431,7 +432,7 @@ export const DocumentChunkPreviewSchema = DocumentChunkSchema.omit({
 });
 export type DocumentChunkPreview = z.infer<typeof DocumentChunkPreviewSchema>;
 
-export const EvalStrategySchema = z.enum(['vector', 'hybrid', 'hybrid-rerank']);
+export const EvalStrategySchema = z.enum(['vector', 'hybrid', 'hybrid-rerank', 'agentic']);
 export type EvalStrategy = z.infer<typeof EvalStrategySchema>;
 
 export const EvalMetricsSchema = z.object({
@@ -469,7 +470,7 @@ export const EvalRunDocumentSchema = z.object({
   minimumRecallAtK: z.number().min(0).max(1),
   maximumRerankRecallDrop: z.number().min(0).max(1),
   passed: z.boolean(),
-  variants: z.array(EvalVariantResultSchema).length(3),
+  variants: z.array(EvalVariantResultSchema).min(3).max(4),
 });
 export type EvalRunDocument = z.infer<typeof EvalRunDocumentSchema>;
 

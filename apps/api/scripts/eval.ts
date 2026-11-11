@@ -27,6 +27,8 @@ import { documentsRepository } from '../src/modules/documents/documents.reposito
 import { usersRepository } from '../src/modules/users/users.repository.js';
 import { membershipsRepository } from '../src/modules/organizations/memberships.repository.js';
 import { evalRunsRepository } from '../src/modules/evals/eval-runs.repository.js';
+import { createAgenticRagService } from '../src/modules/chat/agentic-rag.service.js';
+import { createAgenticRetrievalService } from '../src/modules/chat/retrieval.service.js';
 
 const JudgeResponseSchema = z.object({
   groundedness: z.number().int().min(1).max(5),
@@ -106,7 +108,10 @@ try {
   }
 
   const aclTokens = aclTokensForPrincipal(owner.id, 'admin', membership.groupIds);
-  const services: Record<EvalStrategy, ReturnType<typeof createEvaluationRetrievalService>> = {
+  const services: Record<
+    Exclude<EvalStrategy, 'agentic'>,
+    ReturnType<typeof createEvaluationRetrievalService>
+  > = {
     vector: createEvaluationRetrievalService('vector'),
     hybrid: createEvaluationRetrievalService('hybrid'),
     'hybrid-rerank': createEvaluationRetrievalService('hybrid-rerank'),
@@ -124,6 +129,26 @@ try {
     id: randomUUID(),
     adapter: {
       async retrieveAndAnswer(question, strategy) {
+        if (strategy === 'agentic') {
+          const agenticRetrieval = createAgenticRetrievalService();
+          const agent = createAgenticRagService({
+            retrieve: (query, orgId, tokens) => agenticRetrieval.retrieve(query, orgId, tokens),
+            maxIterations: env.CHAT_AGENT_MAX_ITERATIONS,
+            maxCostUsd: env.CHAT_AGENT_MAX_COST_USD,
+            beforeModelCall: waitForGeminiRequestSlot,
+          });
+          const result = await agent.run({ question, organizationId, aclTokens });
+          return {
+            answer: result.answer || LOW_CONFIDENCE_ANSWER,
+            context: result.citations
+              .map(
+                (citation, index) =>
+                  `[S${index + 1}] ${citation.documentName}\n${citation.passage}`,
+              )
+              .join('\n\n'),
+            sourceIds: [...new Set(result.citations.map((citation) => citation.documentId))],
+          };
+        }
         const retrieval = await services[strategy].retrieve(question, organizationId, aclTokens);
         if (retrieval.citations.length) await waitForGeminiRequestSlot();
         const answer = retrieval.citations.length

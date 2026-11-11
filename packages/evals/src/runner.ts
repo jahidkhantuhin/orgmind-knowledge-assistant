@@ -9,7 +9,7 @@ import {
 } from '@orgmind/shared';
 import { evaluationDocumentId, goldenDataset } from './dataset.js';
 
-export const EVAL_STRATEGIES: EvalStrategy[] = ['vector', 'hybrid', 'hybrid-rerank'];
+export const EVAL_STRATEGIES: EvalStrategy[] = ['vector', 'hybrid', 'hybrid-rerank', 'agentic'];
 
 export type EvaluationAdapter = {
   retrieveAndAnswer(
@@ -92,8 +92,10 @@ export async function runEvaluation(input: {
 
   const hybrid = variants.find((variant) => variant.strategy === 'hybrid')!;
   const reranked = variants.find((variant) => variant.strategy === 'hybrid-rerank')!;
+  const agentic = variants.find((variant) => variant.strategy === 'agentic')!;
   const passed =
     hybrid.metrics.recallAtK >= input.minimumRecallAtK &&
+    agentic.metrics.recallAtK >= input.minimumRecallAtK &&
     reranked.metrics.recallAtK >= input.minimumRecallAtK &&
     reranked.metrics.recallAtK >= hybrid.metrics.recallAtK - input.maximumRerankRecallDrop;
 
@@ -131,7 +133,7 @@ export function formatMarkdownReport(run: EvalRunDocument): string {
   }
   lines.push(
     '',
-    `Regression threshold: hybrid Recall@K ≥ ${run.minimumRecallAtK.toFixed(2)}; hybrid+rerank may drop no more than ${run.maximumRerankRecallDrop.toFixed(2)} vs hybrid.`,
+    `Regression threshold: hybrid and agentic Recall@K ≥ ${run.minimumRecallAtK.toFixed(2)}; hybrid+rerank may drop no more than ${run.maximumRerankRecallDrop.toFixed(2)} vs hybrid.`,
     '',
   );
   return lines.join('\n');

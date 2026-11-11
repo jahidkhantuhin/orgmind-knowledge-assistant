@@ -11,15 +11,15 @@ const run = await runEvaluation({
   minimumRecallAtK: 0.8,
   maximumRerankRecallDrop: 0.1,
   adapter: {
-    async retrieveAndAnswer(question, strategy) {
+    async retrieveAndAnswer(question, _strategy) {
       const golden = goldenDataset.find((item) => item.question === question)!;
       const expected = golden.expectedSourceKeys.map((key) =>
         evaluationDocumentId(organizationId, key),
       );
-      const sourceIds =
-        strategy === 'vector'
-          ? [...expected, ...[...expectedSourceIds].filter((id) => !expected.includes(id))]
-          : [...expected, ...[...expectedSourceIds].filter((id) => !expected.includes(id))];
+      const sourceIds = [
+        ...expected,
+        ...[...expectedSourceIds].filter((id) => !expected.includes(id)),
+      ];
       return { answer: golden.expectedAnswer, context: golden.expectedAnswer, sourceIds };
     },
     async judge({ expectedAnswer, answer, context }) {

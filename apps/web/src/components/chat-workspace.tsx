@@ -28,7 +28,15 @@ type OrgMindMessage = {
     | { type: 'data-citations'; data: ChatCitation[] }
     | { type: 'data-retrieval-debug'; data: RetrievalDebugChunk[] }
     | { type: 'data-observability'; data: ChatObservability }
+    | { type: 'data-agent-step'; data: AgentTimelineStep }
   )[];
+};
+
+type AgentTimelineStep = {
+  id: string;
+  label: string;
+  status: 'running' | 'completed' | 'retrying' | 'skipped';
+  detail?: string;
 };
 
 function toUiMessages(
@@ -347,6 +355,7 @@ function ChatThread({
   const pendingTextRef = useRef('');
   const textTimerRef = useRef<number | null>(null);
   const [messages, setMessages] = useState<OrgMindMessage[]>([]);
+  const [mode, setMode] = useState<'simple' | 'agentic'>('simple');
   const [status, setStatus] = useState<'ready' | 'streaming'>('ready');
   const [streamError, setStreamError] = useState('');
   const activeRequest = useRef<AbortController | null>(null);
@@ -449,6 +458,7 @@ function ChatThread({
           body: JSON.stringify({
             organizationId,
             conversationId: conversation.id,
+            mode,
             messages: [userMessage],
           }),
         },
@@ -568,6 +578,36 @@ function ChatThread({
           } else if (part.type === 'data-observability') {
             const parsed = ChatObservabilitySchema.safeParse(part.data);
             streamedObservability = parsed.success ? parsed.data : undefined;
+          } else if (
+            part.type === 'data-agent-step' &&
+            typeof part.data === 'object' &&
+            part.data !== null
+          ) {
+            const step = part.data as Partial<AgentTimelineStep>;
+            if (
+              typeof step.id === 'string' &&
+              typeof step.label === 'string' &&
+              ['running', 'completed', 'retrying', 'skipped'].includes(step.status ?? '')
+            ) {
+              const timelineStep = step as AgentTimelineStep;
+              setMessages((current) =>
+                current.map((message) => {
+                  if (message.id !== responseMessageId) return message;
+                  const parts = message.parts.filter((item) => item.type !== 'data-agent-step');
+                  const oldSteps = message.parts.filter(
+                    (
+                      item,
+                    ): item is Extract<
+                      OrgMindMessage['parts'][number],
+                      { type: 'data-agent-step' }
+                    > => item.type === 'data-agent-step',
+                  );
+                  const nextSteps = oldSteps.filter((item) => item.data.id !== timelineStep.id);
+                  nextSteps.push({ type: 'data-agent-step', data: timelineStep });
+                  return { ...message, parts: [...parts, ...nextSteps] };
+                }),
+              );
+            }
           } else if (part.type === 'text-delta' && typeof part.delta === 'string') {
             answerText += part.delta;
             pendingTextRef.current += part.delta;
@@ -591,7 +631,8 @@ function ChatThread({
                         (item) =>
                           item.type !== 'data-citations' &&
                           item.type !== 'data-retrieval-debug' &&
-                          item.type !== 'data-observability',
+                          item.type !== 'data-observability' &&
+                          item.type !== 'data-agent-step',
                       ),
                     }
                   : message,
@@ -677,6 +718,22 @@ function ChatThread({
           <span className="chat-grounded-pill">
             <i /> Document-grounded
           </span>
+          <div className="chat-mode-toggle" role="group" aria-label="Answer mode">
+            <button
+              type="button"
+              aria-pressed={mode === 'simple'}
+              onClick={() => setMode('simple')}
+            >
+              Simple
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === 'agentic'}
+              onClick={() => setMode('agentic')}
+            >
+              Agentic
+            </button>
+          </div>
         </header>
         <div
           className="chat-message-list"
@@ -741,6 +798,25 @@ function ChatThread({
                             ))}
                           </div>
                         ) : null;
+                      }
+                      if (part.type === 'data-agent-step') {
+                        const step = part.data;
+                        return (
+                          <div
+                            className="agent-timeline"
+                            key={`${message.id}-${step.id}`}
+                            aria-label="Agent progress"
+                          >
+                            <span
+                              className={`agent-step-dot is-${step.status}`}
+                              aria-hidden="true"
+                            />
+                            <span className="agent-step-label">{step.label}</span>
+                            {step.detail && (
+                              <span className="agent-step-detail">{step.detail}</span>
+                            )}
+                          </div>
+                        );
                       }
                       if (
                         part.type === 'data-retrieval-debug' &&

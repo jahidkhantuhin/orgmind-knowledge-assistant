@@ -19,3 +19,4 @@ minimumReleaseAgeExclude:
   - '@ai-sdk/mcp@2.0.92'
   - '@ai-sdk/react@4.0.168'
   - ai@7.0.164
+  - '@langchain/langgraph@1.7.3'

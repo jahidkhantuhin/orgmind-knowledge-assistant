@@ -46,6 +46,8 @@ const EnvSchema = z
     CHAT_VECTOR_SEARCH_WEIGHT: z.coerce.number().min(0).default(0.7),
     CHAT_KEYWORD_SEARCH_WEIGHT: z.coerce.number().min(0).default(0.3),
     CHAT_RERANK_CANDIDATE_COUNT: z.coerce.number().int().min(1).max(100).default(20),
+    CHAT_AGENT_MAX_ITERATIONS: z.coerce.number().int().min(1).max(3).default(2),
+    CHAT_AGENT_MAX_COST_USD: z.coerce.number().positive().max(1).default(0.05),
     EVAL_ORGANIZATION_ID: z.string().default(''),
     EVAL_MIN_RECALL_AT_K: z.coerce.number().min(0).max(1).default(0.6),
     EVAL_MAX_RERANK_RECALL_DROP: z.coerce.number().min(0).max(1).default(0.1),

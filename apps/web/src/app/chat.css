@@ -208,6 +208,74 @@
   border-radius: 50%;
   background: #39b684;
 }
+.chat-mode-toggle {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid #e6e9ef;
+  border-radius: 999px;
+  background: #f7f8fb;
+}
+.chat-mode-toggle button {
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #657084;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.chat-mode-toggle button[aria-pressed='true'] {
+  background: #6958e8;
+  color: #fff;
+}
+.agent-timeline {
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px 0 0;
+  padding: 8px 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #e5e8ef;
+  border-radius: 12px;
+  color: #647084;
+  font-size: 12px;
+}
+.agent-step-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #9aa3b2;
+}
+.agent-step-dot.is-running,
+.agent-step-dot.is-retrying {
+  background: #7564f2;
+  box-shadow: 0 0 0 4px #7564f220;
+  animation: agent-step-pulse 1.2s ease-in-out infinite;
+}
+.agent-step-dot.is-completed {
+  background: #27a77a;
+}
+.agent-step-dot.is-skipped {
+  background: #9aa3b2;
+}
+.agent-step-label {
+  color: #283246;
+  font-weight: 600;
+}
+.agent-step-detail {
+  color: #748096;
+}
+@keyframes agent-step-pulse {
+  50% {
+    box-shadow: 0 0 0 7px #7564f210;
+  }
+}
 .chat-message-list {
   flex: 1 1 0;
   min-height: 0;
@@ -605,6 +673,27 @@
 .dark .chat-grounded-pill {
   border-color: #394252;
 }
+.dark .chat-mode-toggle {
+  border-color: #394252;
+  background: #171c25;
+}
+.dark .chat-mode-toggle button {
+  color: #aab4c4;
+}
+.dark .chat-mode-toggle button[aria-pressed='true'] {
+  color: #fff;
+}
+.dark .agent-timeline {
+  border-color: #394252;
+  color: #aab4c4;
+  background: #171c25;
+}
+.dark .agent-step-label {
+  color: #e2e7f0;
+}
+.dark .agent-step-detail {
+  color: #aab4c4;
+}
 .dark .assistant-typing-indicator {
   color: #aab4c4;
 }
@@ -746,6 +835,7 @@
     min-height: 60px;
     padding: 10px 11px;
     gap: 8px;
+    flex-wrap: wrap;
   }
   .chat-thread-heading > div {
     flex: 1 1 auto;
@@ -759,6 +849,19 @@
     max-width: 42%;
     padding: 6px 7px;
     font-size: 9px;
+  }
+  .chat-mode-toggle {
+    order: 3;
+    margin-left: auto;
+  }
+  .chat-mode-toggle button {
+    min-height: 27px;
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+  .agent-timeline {
+    width: 100%;
+    flex-wrap: wrap;
   }
   .chat-message-list {
     padding: 14px 10px;

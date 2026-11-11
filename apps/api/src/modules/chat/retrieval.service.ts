@@ -259,4 +259,14 @@ export function createConfiguredRetrievalService(dependencies = defaultDependenc
   return createRetrievalService(dependencies);
 }
 
+export function createAgenticRetrievalService() {
+  return createRetrievalService({
+    ...defaultDependencies,
+    getSettings: async (organizationId) => ({
+      rerankingEnabled: (await retrievalSettingsRepository.get(organizationId)).rerankingEnabled,
+      queryRewriteEnabled: false,
+    }),
+  });
+}
+
 export const retrievalService = createConfiguredRetrievalService();

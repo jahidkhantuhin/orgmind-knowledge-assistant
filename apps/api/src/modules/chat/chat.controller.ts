@@ -24,12 +24,14 @@ import { env } from '../../config/env.js';
 import { logger } from '../../lib/logger.js';
 import { chatRepository } from './chat.repository.js';
 import { chatModelProvider } from './chat-model.provider.js';
-import { retrievalService } from './retrieval.service.js';
+import { createAgenticRetrievalService, retrievalService } from './retrieval.service.js';
 import { LOW_CONFIDENCE_ANSWER, buildGroundedSystemPrompt } from './prompt.builder.js';
 import { aclTokensForPrincipal } from '../documents/document-acl.js';
 import { documentsRepository } from '../documents/documents.repository.js';
 import { activeTraceId, withSpan } from '../../lib/telemetry.js';
 import { estimateTokenCostUsd } from './usage-metrics.js';
+import { createAgenticRagService } from './agentic-rag.service.js';
+import type { AgentStep } from './agentic-rag.graph.js';
 
 function routeParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -289,9 +291,13 @@ export const streamChatController: RequestHandler = async (req, res) => {
       aclTokens,
     );
     const requestStartedAt = performance.now();
-    const retrieval = await retrievalService.retrieve(question, organizationId, aclTokens);
-    const isLowConfidence = retrieval.citations.length === 0;
-    const citations = retrieval.citations;
+    const retrieval =
+      parsed.data.mode === 'simple'
+        ? await retrievalService.retrieve(question, organizationId, aclTokens)
+        : undefined;
+    const isLowConfidence = retrieval?.citations.length === 0;
+    let citations = retrieval?.citations ?? [];
+    let retrievalDebug = retrieval?.debug ?? [];
     const modelMessages: ModelMessage[] = priorMessages.slice(-20).map((message) => ({
       role: message.role,
       content: message.content,
@@ -305,14 +311,61 @@ export const streamChatController: RequestHandler = async (req, res) => {
           citations: ChatCitation[];
           'retrieval-debug': RetrievalDebugChunk[];
           observability: ChatObservability;
+          'agent-step': AgentStep;
         }
       >
     >({
       execute: async ({ writer }) => {
         writer.write({ type: 'start', messageId: responseMessageId });
-        writer.write({ type: 'data-citations', data: citations });
-        writer.write({ type: 'data-retrieval-debug', data: retrieval.debug });
+        if (parsed.data.mode === 'simple') {
+          writer.write({ type: 'data-citations', data: citations });
+          writer.write({ type: 'data-retrieval-debug', data: retrieval?.debug ?? [] });
+        }
         let observability: ChatObservability;
+        if (parsed.data.mode === 'agentic') {
+          const agentStartedAt = performance.now();
+          const agenticRetrieval = createAgenticRetrievalService();
+          const result = await createAgenticRagService({
+            retrieve: (query, orgId, tokens) => agenticRetrieval.retrieve(query, orgId, tokens),
+            maxIterations: env.CHAT_AGENT_MAX_ITERATIONS,
+            maxCostUsd: env.CHAT_AGENT_MAX_COST_USD,
+            emit: (step) => writer.write({ type: 'data-agent-step', data: step }),
+          }).run({
+            question,
+            organizationId,
+            aclTokens,
+          });
+          citations = result.citations;
+          retrievalDebug = result.debug;
+          writer.write({ type: 'data-citations', data: citations });
+          writer.write({ type: 'data-retrieval-debug', data: retrievalDebug });
+          const answer = result.answer || LOW_CONFIDENCE_ANSWER;
+          const agentElapsed = performance.now() - agentStartedAt;
+          const traceId = activeTraceId();
+          observability = {
+            ...(traceId ? { traceId } : {}),
+            modelId: env.CHAT_MODEL,
+            inputTokens: result.inputTokens,
+            outputTokens: result.outputTokens,
+            totalTokens: result.inputTokens + result.outputTokens,
+            estimatedCostUsd: result.estimatedCostUsd,
+            latencyMs: {
+              retrieval: result.retrieval.total,
+              embedding: result.retrieval.embedding,
+              search: result.retrieval.search,
+              rerank: result.retrieval.rerank,
+              generation: Math.max(0, agentElapsed - result.retrieval.total),
+              total: performance.now() - requestStartedAt,
+            },
+          };
+          finalObservability = observability;
+          writer.write({ type: 'data-observability', data: observability });
+          writer.write({ type: 'text-start', id: responseMessageId });
+          writer.write({ type: 'text-delta', id: responseMessageId, delta: answer });
+          writer.write({ type: 'text-end', id: responseMessageId });
+          writer.write({ type: 'finish', finishReason: 'stop' });
+          return;
+        }
         if (isLowConfidence) {
           const traceId = activeTraceId();
           observability = {
@@ -323,10 +376,10 @@ export const streamChatController: RequestHandler = async (req, res) => {
             totalTokens: 0,
             estimatedCostUsd: 0,
             latencyMs: {
-              retrieval: retrieval.latencyMs.total,
-              embedding: retrieval.latencyMs.embedding,
-              search: retrieval.latencyMs.search,
-              rerank: retrieval.latencyMs.rerank,
+              retrieval: retrieval!.latencyMs.total,
+              embedding: retrieval!.latencyMs.embedding,
+              search: retrieval!.latencyMs.search,
+              rerank: retrieval!.latencyMs.rerank,
               generation: 0,
               total: performance.now() - requestStartedAt,
             },
@@ -345,7 +398,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
           async () => {
             const result = streamText({
               model: chatModelProvider.getModel(),
-              system: `${buildGroundedSystemPrompt(citations)}\n\nRetrieved passages:\n${retrieval.context}`,
+              system: `${buildGroundedSystemPrompt(citations)}\n\nRetrieved passages:\n${retrieval!.context}`,
               messages: modelMessages,
               maxOutputTokens: 900,
               onError: ({ error }) => logger.error({ err: error }, 'Chat model stream failed'),
@@ -376,10 +429,10 @@ export const streamChatController: RequestHandler = async (req, res) => {
               totalTokens: usage.totalTokens ?? inputTokens + outputTokens,
               estimatedCostUsd,
               latencyMs: {
-                retrieval: retrieval.latencyMs.total,
-                embedding: retrieval.latencyMs.embedding,
-                search: retrieval.latencyMs.search,
-                rerank: retrieval.latencyMs.rerank,
+                retrieval: retrieval!.latencyMs.total,
+                embedding: retrieval!.latencyMs.embedding,
+                search: retrieval!.latencyMs.search,
+                rerank: retrieval!.latencyMs.rerank,
                 generation,
                 total: performance.now() - requestStartedAt,
               },
@@ -410,7 +463,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
             role: 'assistant',
             content,
             citations: usedCitations,
-            retrievalDebug: retrieval.debug,
+            retrievalDebug,
             ...(finalObservability ? { observability: finalObservability } : {}),
           });
         } catch (error) {
