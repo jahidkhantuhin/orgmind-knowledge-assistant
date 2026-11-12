@@ -126,7 +126,7 @@
 - Added Ollama embeddings through its local `/api/embed` endpoint, with Nomic task prefixes. New chunks carry an embedding provider/model/dimension profile, and both vector and keyword search filter on that profile. Migration `014-chunk-embedding-profiles` tags existing legacy vectors with the original default Gemini profile; rerun `pnpm db:search-indexes` to update its filter fields. If Atlas Local rejects a vector-index update as a text mapping, the index script recreates the vector index and waits for it to become ready without deleting document data.
 - Added a README **Run fully local with Ollama** guide covering local models, environment settings, external reranker/context-enrichment switches, re-embedding after provider changes, and cache limitations. Added model-routing, cache-similarity, and Ollama-embedding unit tests.
 
-## Step 14: MCP integrations
+## Step 14: GitHub repository integration
 
 - Added an admin-only GitHub connector using GitHub's hosted read-only MCP endpoint and the official `@modelcontextprotocol/client@2.4.0` SDK. Admins select a repository, branch, Markdown/TXT file, GitHub token, and workspace roles; the fixed endpoint and restricted tool set avoid arbitrary outbound URLs or write-capable repository operations.
 - Connector tokens are encrypted at rest with AES-256-GCM using a key derived from `BETTER_AUTH_SECRET`, excluded from API responses, and redacted from stored sync errors. Keep the auth secret stable: rotating it requires reconnecting GitHub sources.
