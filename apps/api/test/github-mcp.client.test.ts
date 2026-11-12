@@ -50,7 +50,17 @@ describe('GitHub MCP client with a mocked MCP server', () => {
     mockMcpServer.close.mockResolvedValue(undefined);
     mockMcpServer.listTools.mockResolvedValue({ tools: [fileTool] });
     mockMcpServer.callTool.mockResolvedValue({
-      content: [{ type: 'text', text: '# Team handbook\n\nRead-only policy.' }],
+      content: [
+        { type: 'text', text: 'successfully downloaded text file (SHA: abc123)' },
+        {
+          type: 'resource',
+          resource: {
+            uri: 'repo://octocat/handbook/contents/README.md',
+            mimeType: 'text/markdown; charset=utf-8',
+            text: '# Team handbook\n\nRead-only policy.',
+          },
+        },
+      ],
     });
   });
 
@@ -85,6 +95,21 @@ describe('GitHub MCP client with a mocked MCP server', () => {
       name: 'get_file_contents',
       arguments: { owner: 'octocat', repo: 'handbook', path: 'docs/team.md', ref: 'main' },
     });
+  });
+
+  it('does not mistake GitHub MCP status text for file content', async () => {
+    mockMcpServer.callTool.mockResolvedValue({
+      content: [{ type: 'text', text: 'successfully downloaded text file (SHA: abc123)' }],
+    });
+
+    await expect(
+      readGithubFile('test-token', {
+        owner: 'octocat',
+        repository: 'handbook',
+        branch: 'main',
+        path: 'README.md',
+      }),
+    ).rejects.toThrow('GitHub MCP returned no text for this file.');
   });
 
   it('surfaces MCP tool errors without treating them as file content', async () => {

@@ -5,9 +5,14 @@ export const GITHUB_READONLY_MCP_ENDPOINT = 'https://api.githubcopilot.com/mcp/r
 const MCP_TIMEOUT_MS = 30_000;
 
 type GithubSource = { owner: string; repository: string; branch: string; path: string };
+type ToolContent = {
+  type: string;
+  text?: string;
+  resource?: { text?: string; blob?: string; mimeType?: string; uri?: string };
+};
 type ToolResult = {
   isError?: boolean;
-  content?: Array<{ type: string; text?: string }>;
+  content?: ToolContent[];
   structuredContent?: unknown;
 };
 
@@ -61,6 +66,10 @@ async function withGithubClient<T>(
   }
 }
 
+function isGithubStatusText(text: string): boolean {
+  return /^successfully downloaded text file(?:\s*\(SHA:\s*[a-f0-9]+\))?\s*$/i.test(text.trim());
+}
+
 function resultText(result: ToolResult): string {
   if (result.isError) {
     const detail = result.content
@@ -69,15 +78,38 @@ function resultText(result: ToolResult): string {
       .join('\n');
     throw new Error(detail?.slice(0, 500) || 'GitHub MCP could not read this file.');
   }
+  const embeddedText = result.content
+    ?.filter((item) => item.type === 'resource')
+    .map((item) => {
+      if (item.type !== 'resource' || !item.resource) return '';
+      if (typeof item.resource.text === 'string') return item.resource.text;
+      if (typeof item.resource.blob === 'string') {
+        const mimeType = item.resource.mimeType?.toLowerCase() ?? '';
+        if (!mimeType.startsWith('text/') && !mimeType.includes('json')) {
+          throw new Error('GitHub MCP returned a non-text file resource.');
+        }
+        return Buffer.from(item.resource.blob, 'base64').toString('utf8');
+      }
+      return '';
+    })
+    .filter(Boolean)
+    .join('\n');
+  if (embeddedText) return embeddedText;
+
   const structured = result.structuredContent;
   if (structured && typeof structured === 'object' && !Array.isArray(structured)) {
     const record = structured as Record<string, unknown>;
     for (const key of ['content', 'text', 'fileContent']) {
-      if (typeof record[key] === 'string') return record[key];
+      if (typeof record[key] === 'string' && !isGithubStatusText(record[key])) return record[key];
+      if (Array.isArray(record[key])) {
+        const structuredText = resultText({ content: record[key] as ToolContent[] });
+        if (structuredText) return structuredText;
+      }
     }
   }
   const text = result.content
     ?.map((item) => (item.type === 'text' ? (item.text ?? '') : ''))
+    .filter((item) => !isGithubStatusText(item))
     .join('\n');
   if (!text?.trim()) throw new Error('GitHub MCP returned no text for this file.');
   try {
