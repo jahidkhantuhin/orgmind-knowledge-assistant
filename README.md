@@ -304,6 +304,12 @@ To configure local OAuth, enable the Google Drive API in a Google Cloud project,
 
 Run `pnpm db:migrate` to apply migration `016-google-drive-integrations`. To try it, sign in as a workspace admin, open **Settings → Integrations**, paste a link to a PDF or Google Doc that the authorized Google account can open, choose member/viewer access, and connect. Approve read-only access on Google's authorization page; OrgMind then returns to Integrations. Wait for the imported document to finish processing in Knowledge base, then ask a question answered by that file. Use **Sync now** after changing the Drive file; unchanged content is skipped. Removing the source also removes its imported document and chunks.
 
+## Step 15: Feedback loop and admin analytics
+
+Assistant answers can be rated helpful or unhelpful; an optional reason can accompany negative feedback. Feedback is tied to the workspace, conversation, answer, question, citations, and retrieval trace. Workspace admins can open **Settings → Analytics** to see the last 30 days of question activity, frequently asked questions, questions with no accessed source documents, a low-confidence rate, and feedback totals. “Unanswered” and “low confidence” currently use failed chats or audit records with no accessed source documents as the signal, so treat these as retrieval-gap indicators rather than an LLM confidence score.
+
+Admins can export positively rated answers from the prior 90 days as a JSON eval-dataset draft. Review each question, answer, and source ID before adding it to `packages/evals/src/dataset.ts`; the export does not automatically modify the golden dataset. Run `pnpm db:migrate`, then use the feedback buttons in Assistant and open **Settings → Analytics**. The export endpoint is available from that page.
+
 ## Author
 
 Jahid Khan Tuhin, Full Stack JavaScript Engineer

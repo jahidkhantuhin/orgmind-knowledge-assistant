@@ -139,3 +139,9 @@
 - Added support for Drive PDFs, DOCX files, and native Google Docs (exported to DOCX). Unsupported Drive types are rejected; downloaded content uses the configured upload-size cap and existing document ingestion queue and ACL pipeline.
 - Added manual Drive sync, content-hash change detection, workspace role access controls, disconnect/removal, a Google Drive section in **Settings → Integrations**, and migration `016-google-drive-integrations` for source and expiring OAuth state indexes.
 - Added `GOOGLE_DRIVE_CLIENT_ID` and `GOOGLE_DRIVE_CLIENT_SECRET` configuration. See the Step 14 Google Drive section in README for Google Cloud OAuth setup, supported formats, size limits, and a UI verification walkthrough.
+
+## Step 15: Feedback loop and admin analytics
+
+- Added per-answer thumbs up/down feedback with optional reasons, scoped to the user's own conversation and stored with the answer, question, citations, and retrieval trace. Added migration `017-chat-feedback` and upsert indexes.
+- Added admin endpoints for 30-day question, unanswered-source, low-confidence, and feedback summaries; positive feedback can be exported as a JSON eval-dataset draft covering the prior 90 days.
+- Added the admin Analytics page and message-level feedback controls. “Unanswered” and “low confidence” currently mean a failed chat or a chat audit entry with no accessed source documents; review exported examples before adding them to the golden eval dataset.

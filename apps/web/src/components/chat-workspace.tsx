@@ -366,7 +366,32 @@ function ChatThread({
   const [modelPreference, setModelPreference] = useState<'auto' | 'fast' | 'strong'>('auto');
   const [status, setStatus] = useState<'ready' | 'streaming'>('ready');
   const [streamError, setStreamError] = useState('');
+  const [messageFeedback, setMessageFeedback] = useState<Record<string, 'up' | 'down'>>({});
+  const [feedbackReasonFor, setFeedbackReasonFor] = useState<string | null>(null);
   const activeRequest = useRef<AbortController | null>(null);
+
+  const sendFeedback = useCallback(
+    async (messageId: string, vote: 'up' | 'down', reason?: string) => {
+      const response = await fetch(
+        `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/chat/messages/${encodeURIComponent(messageId)}/feedback`,
+        {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ vote, ...(reason ? { reason } : {}) }),
+        },
+      );
+      if (!response.ok) throw new Error('Could not save feedback.');
+      setMessageFeedback((current) => ({ ...current, [messageId]: vote }));
+      setFeedbackReasonFor(null);
+      notify({
+        title: 'Feedback saved',
+        description: 'Thanks for helping improve OrgMind.',
+        kind: 'success',
+      });
+    },
+    [notify, organizationId],
+  );
 
   useEffect(() => {
     let active = true;
@@ -1013,6 +1038,50 @@ function ChatThread({
                       </div>
                     )}
                   </div>
+                  {message.role === 'assistant' && status !== 'streaming' && hasText && (
+                    <div className="chat-feedback-actions" aria-label="Rate this answer">
+                      <span>Was this answer helpful?</span>
+                      <button
+                        type="button"
+                        aria-label="Helpful answer"
+                        aria-pressed={messageFeedback[message.id] === 'up'}
+                        onClick={() => void sendFeedback(message.id, 'up')}
+                      >
+                        👍
+                      </button>
+                      <button
+                        type="button"
+                        aria-label="Unhelpful answer"
+                        aria-pressed={messageFeedback[message.id] === 'down'}
+                        onClick={() =>
+                          setFeedbackReasonFor(feedbackReasonFor === message.id ? null : message.id)
+                        }
+                      >
+                        👎
+                      </button>
+                      {feedbackReasonFor === message.id && (
+                        <form
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            const form = event.currentTarget;
+                            const reason = new FormData(form).get('reason');
+                            void sendFeedback(
+                              message.id,
+                              'down',
+                              typeof reason === 'string' ? reason : undefined,
+                            );
+                          }}
+                        >
+                          <input
+                            name="reason"
+                            maxLength={500}
+                            placeholder="What could be better? (optional)"
+                          />
+                          <button type="submit">Send</button>
+                        </form>
+                      )}
+                    </div>
+                  )}
                 </article>
               );
             })

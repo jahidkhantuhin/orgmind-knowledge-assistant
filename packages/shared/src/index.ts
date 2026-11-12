@@ -512,6 +512,46 @@ export const ChatMessageRecordSchema = z.object({
 });
 export type ChatMessageRecord = z.infer<typeof ChatMessageRecordSchema>;
 
+export const ChatFeedbackVoteSchema = z.enum(['up', 'down']);
+export const ChatFeedbackRecordSchema = z.object({
+  _id: z.string().uuid(),
+  organizationId: z.string().min(1),
+  conversationId: z.string().uuid(),
+  messageId: z.string().uuid(),
+  userId: z.string().min(1),
+  vote: ChatFeedbackVoteSchema,
+  reason: z.string().trim().max(500).optional(),
+  question: z.string().max(20_000),
+  answer: z.string().max(100_000),
+  retrievalTrace: z.array(RetrievalDebugChunkSchema).max(100),
+  citationDocumentIds: z.array(z.string().min(1)).max(100),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+export type ChatFeedbackRecord = z.infer<typeof ChatFeedbackRecordSchema>;
+export const SubmitChatFeedbackSchema = z.object({
+  vote: ChatFeedbackVoteSchema,
+  reason: z.string().trim().max(500).optional(),
+});
+export const ChatFeedbackResponseSchema = z.object({
+  vote: ChatFeedbackVoteSchema.nullable(),
+  reason: z.string().optional(),
+});
+export const WorkspaceAnalyticsSchema = z.object({
+  since: z.string().datetime(),
+  totalQuestions: z.number().int().nonnegative(),
+  unansweredQuestions: z.number().int().nonnegative(),
+  lowConfidenceRate: z.number().min(0).max(1),
+  topQuestions: z.array(z.object({ question: z.string(), count: z.number().int().positive() })),
+  knowledgeGaps: z.array(z.object({ question: z.string(), count: z.number().int().positive() })),
+  feedback: z.object({
+    positive: z.number().int().nonnegative(),
+    negative: z.number().int().nonnegative(),
+  }),
+});
+export type WorkspaceAnalytics = z.infer<typeof WorkspaceAnalyticsSchema>;
+export const WorkspaceAnalyticsResponseSchema = z.object({ analytics: WorkspaceAnalyticsSchema });
+
 export const ChatMessageResponseSchema = z.object({
   id: z.string().uuid(),
   role: z.enum(['user', 'assistant']),

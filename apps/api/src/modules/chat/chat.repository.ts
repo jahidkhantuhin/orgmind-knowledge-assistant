@@ -114,6 +114,7 @@ export const chatRepository = {
 
   async addMessage(
     record: Omit<ChatMessageRecord, '_id' | 'createdAt' | 'retrievalDebug'> & {
+      messageId?: string;
       retrievalDebug?: ChatMessageRecord['retrievalDebug'];
       observability?: ChatMessageRecord['observability'];
       securityNotice?: ChatMessageRecord['securityNotice'];
@@ -121,7 +122,7 @@ export const chatRepository = {
   ): Promise<ChatMessageRecord> {
     const message = parseMessage({
       ...record,
-      _id: randomUUID(),
+      _id: record.messageId ?? randomUUID(),
       createdAt: new Date(),
     }) as MessageRow;
     await messages().insertOne(message);

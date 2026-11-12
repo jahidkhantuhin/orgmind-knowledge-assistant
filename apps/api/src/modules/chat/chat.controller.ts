@@ -697,6 +697,7 @@ export const streamChatController: RequestHandler = async (req, res) => {
                 organizationId,
                 conversationId: conversation._id,
                 userId,
+                messageId: responseMessageId,
                 role: 'assistant',
                 content,
                 citations: usedCitations,

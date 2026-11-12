@@ -19,6 +19,7 @@ import { evalRunsRepository } from '../../modules/evals/eval-runs.repository.js'
 import { auditLogsRepository } from '../../modules/audit/audit-logs.repository.js';
 import { integrationsRepository } from '../../modules/integrations/integrations.repository.js';
 import { googleDriveRepository } from '../../modules/integrations/google-drive.repository.js';
+import { feedbackRepository } from '../../modules/chat/feedback.repository.js';
 
 export async function runMigrations(): Promise<void> {
   const database = getDatabase();
@@ -127,6 +128,7 @@ export async function runMigrations(): Promise<void> {
   await applyMigration(migrations, '016-google-drive-integrations', () =>
     googleDriveRepository.ensureIndexes(),
   );
+  await applyMigration(migrations, '017-chat-feedback', () => feedbackRepository.ensureIndexes());
 }
 
 async function applyMigration(

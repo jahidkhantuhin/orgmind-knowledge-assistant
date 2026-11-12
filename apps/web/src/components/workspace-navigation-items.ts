@@ -8,6 +8,7 @@ export type WorkspaceNavigationSection =
   | 'integrations'
   | 'evals'
   | 'usage'
+  | 'analytics'
   | 'audit';
 
 export type WorkspaceNavigationItem = {
@@ -38,6 +39,13 @@ export const workspaceNavigationItems: WorkspaceNavigationItem[] = [
   },
   { href: '/settings/evals', label: 'Evals', section: 'evals', icon: '▥', adminOnly: true },
   { href: '/settings/usage', label: 'Usage', section: 'usage', icon: '◷', adminOnly: true },
+  {
+    href: '/settings/analytics',
+    label: 'Analytics',
+    section: 'analytics',
+    icon: '▤',
+    adminOnly: true,
+  },
   { href: '/settings/audit', label: 'Audit log', section: 'audit', icon: '▦', adminOnly: true },
 ];
 

@@ -42,6 +42,12 @@ import { listEvalRunsController } from '../evals/eval-runs.controller.js';
 import { getOrganizationUsageController } from '../usage/usage.controller.js';
 import { listAuditLogsController } from '../audit/audit-logs.controller.js';
 import {
+  getChatFeedbackController,
+  submitChatFeedbackController,
+  getWorkspaceAnalyticsController,
+  exportFeedbackEvalDatasetController,
+} from '../chat/feedback.controller.js';
+import {
   createIntegrationController,
   deleteIntegrationController,
   listIntegrationsController,
@@ -261,6 +267,30 @@ organizationsRouter.get(
   requireAuth,
   requireOrganizationRole(['admin']),
   listEvalRunsController,
+);
+organizationsRouter.get(
+  '/:organizationId/analytics',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  getWorkspaceAnalyticsController,
+);
+organizationsRouter.get(
+  '/:organizationId/feedback/export',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  exportFeedbackEvalDatasetController,
+);
+organizationsRouter.get(
+  '/:organizationId/chat/messages/:messageId/feedback',
+  requireAuth,
+  requireOrganizationRole(['admin', 'member', 'viewer']),
+  getChatFeedbackController,
+);
+organizationsRouter.put(
+  '/:organizationId/chat/messages/:messageId/feedback',
+  requireAuth,
+  requireOrganizationRole(['admin', 'member', 'viewer']),
+  submitChatFeedbackController,
 );
 organizationsRouter.get(
   '/:organizationId/usage',
