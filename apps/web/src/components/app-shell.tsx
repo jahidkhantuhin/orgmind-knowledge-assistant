@@ -182,29 +182,49 @@ function ShellContent({ currentUser }: { currentUser: AuthMeResponse }) {
               <h3>Your workspace</h3>
               <p>Everything starts with the knowledge you share.</p>
             </div>
-            <button className="text-button">
+            <Link className="text-button" href="/knowledge">
               View all <span>→</span>
-            </button>
+            </Link>
           </div>
           <div className="stat-grid">
-            <article className="stat-card">
+            <Link className="stat-card" href="/knowledge" aria-label="Browse knowledge sources">
               <div className="stat-icon violet">▤</div>
               <div className="stat-label">KNOWLEDGE SOURCES</div>
-              <div className="stat-value">—</div>
-              <div className="stat-note">Your team&apos;s shared knowledge</div>
-            </article>
-            <article className="stat-card">
+              <div className="stat-value stat-action">→</div>
+              <div className="stat-note">Browse your team&apos;s shared knowledge</div>
+            </Link>
+            <Link
+              className="stat-card"
+              href={organization?.role === 'admin' ? '/settings/analytics' : '/chat'}
+              aria-label={
+                organization?.role === 'admin' ? 'Explore question analytics' : 'Ask a question'
+              }
+            >
               <div className="stat-icon mint">✦</div>
               <div className="stat-label">QUESTIONS ANSWERED</div>
-              <div className="stat-value">—</div>
-              <div className="stat-note">Insights, ready when you are</div>
-            </article>
-            <article className="stat-card">
+              <div className="stat-value stat-action">→</div>
+              <div className="stat-note">
+                {organization?.role === 'admin'
+                  ? 'Explore workspace question insights'
+                  : 'Ask your workspace a question'}
+              </div>
+            </Link>
+            <Link
+              className="stat-card"
+              href={organization?.role === 'admin' ? '/settings/usage' : '/chat'}
+              aria-label={
+                organization?.role === 'admin' ? 'View workspace usage' : 'Start a conversation'
+              }
+            >
               <div className="stat-icon amber">◷</div>
               <div className="stat-label">TIME GIVEN BACK</div>
-              <div className="stat-value">—</div>
-              <div className="stat-note">More space for meaningful work</div>
-            </article>
+              <div className="stat-value stat-action">→</div>
+              <div className="stat-note">
+                {organization?.role === 'admin'
+                  ? 'Review workspace activity and usage'
+                  : 'Start a conversation to find answers'}
+              </div>
+            </Link>
           </div>
           <div className="bottom-note">
             <span>✳</span>
