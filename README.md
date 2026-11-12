@@ -286,7 +286,9 @@ Workspace admins manage both source connectors from **Settings → Integrations*
 | GitHub       | Fine-grained read-only personal access token | One Markdown or TXT file from a repository path                             | Admin-triggered sync |
 | Google Drive | Google OAuth with read-only Drive access     | One PDF, DOCX, or native Google Docs file; Google Docs are exported as DOCX | Admin-triggered sync |
 
-## Step 14: GitHub repository integration
+## Step 14: MCP connectors
+
+### GitHub repository integration
 
 Workspace admins can connect a single Markdown or TXT file from a GitHub repository in **Settings → Integrations**. The API uses `@modelcontextprotocol/client@2.4.0` with GitHub's official read-only MCP endpoint (`https://api.githubcopilot.com/mcp/readonly`) and a GitHub personal access token supplied by the admin. Use a fine-grained token with only the repository contents read permission needed for that source. OrgMind validates access, encrypts the token at rest with AES-256-GCM using a key derived from `BETTER_AUTH_SECRET`, and never returns it to the browser. Keep `BETTER_AUTH_SECRET` stable and backed up; rotating it makes stored connector credentials undecryptable, so reconnect those sources after rotation. [GitHub's official MCP server documentation](https://github.com/github/github-mcp-server/blob/main/docs/remote-server.md) describes its hosted read-only endpoint and available tools.
 
@@ -294,7 +296,7 @@ After connecting, an admin presses **Sync file** or **Sync now**. OrgMind reads 
 
 Migration `015-mcp-integrations` creates the integration indexes; run `pnpm db:migrate` after updating. To verify, run `pnpm lint`, `pnpm typecheck`, and `pnpm test`; sign in as a workspace admin, connect a small `.md` or `.txt` file using a read-only GitHub token, sync it, and confirm it appears in Knowledge base. Sync again without changing the file to confirm it is skipped; change the repository file and sync to confirm the imported document is replaced. Finally, test as a viewer/member excluded by the configured roles and confirm the imported document is not visible or retrievable.
 
-## Step 15: Google Drive PDF and Docs integration
+### Google Drive PDF and Docs integration
 
 Workspace admins can import one Google Drive file at a time from **Settings → Integrations** by pasting a Drive file URL or ID and authorizing a Google account. Supported sources are PDF, DOCX, and native Google Docs; Google Docs are exported as DOCX before ingestion. Legacy `.doc` files, Google Sheets, Slides, folders, and other formats are not supported. Files use the existing upload-size limit (`MAX_DOCUMENT_UPLOAD_BYTES`), storage, parsing, chunking, embedding, and indexing pipeline. The Google Drive integration's “Imported” status means content was queued; confirm document processing reaches **Ready** on the Knowledge base page before asking questions.
 
