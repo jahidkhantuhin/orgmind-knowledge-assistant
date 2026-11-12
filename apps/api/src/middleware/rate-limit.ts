@@ -23,7 +23,7 @@ function initializeRateLimiters(): void {
     limit: 10,
     standardHeaders: true,
     legacyHeaders: false,
-    store: redisStore('orgmind:ratelimit:auth:'),
+    store: redisStore('orgmind:ratelimit:login:'),
     handler: limitHandler('Too many sign-in or registration attempts. Try again in 15 minutes.'),
   });
   registrationLimiter = rateLimit({

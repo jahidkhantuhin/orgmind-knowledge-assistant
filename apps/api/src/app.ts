@@ -13,7 +13,11 @@ import { authRouter } from './modules/auth/auth.routes.js';
 import { organizationsRouter } from './modules/organizations/organizations.routes.js';
 import { errorHandler } from './middleware/errors.js';
 import { rejectMongoOperatorKeys } from './middleware/reject-nosql-operators.js';
-import { authRateLimiter, ensureRateLimitStore } from './middleware/rate-limit.js';
+import {
+  authRateLimiter,
+  ensureRateLimitStore,
+  registrationRateLimiter,
+} from './middleware/rate-limit.js';
 
 export const app = express();
 app.disable('x-powered-by');
@@ -49,7 +53,8 @@ app.use(
   }),
 );
 app.use(cors({ origin: env.WEB_ORIGIN, credentials: true }));
-app.use(['/api/auth', '/auth'], ensureRateLimitStore, authRateLimiter);
+app.use('/api/auth/sign-in/email', ensureRateLimitStore, authRateLimiter);
+app.use('/api/auth/sign-up/email', ensureRateLimitStore, registrationRateLimiter);
 app.all('/api/auth/*splat', toNodeHandler(auth));
 app.use(express.json({ limit: '1mb' }));
 app.use(rejectMongoOperatorKeys);
