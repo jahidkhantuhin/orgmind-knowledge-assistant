@@ -749,39 +749,41 @@ function ChatThread({
             <p className="eyebrow">ORG MIND ASSISTANT</p>
             <h2>{conversation.title}</h2>
           </div>
-          <span className="chat-grounded-pill">
-            <i /> Document-grounded
-          </span>
-          <div className="chat-mode-toggle" role="group" aria-label="Answer mode">
-            <button
-              type="button"
-              aria-pressed={mode === 'simple'}
-              onClick={() => setMode('simple')}
-            >
-              Simple
-            </button>
-            <button
-              type="button"
-              aria-pressed={mode === 'agentic'}
-              onClick={() => setMode('agentic')}
-            >
-              Agentic
-            </button>
+          <div className="chat-thread-controls">
+            <span className="chat-grounded-pill">
+              <i /> Document-grounded
+            </span>
+            <div className="chat-mode-toggle" role="group" aria-label="Answer mode">
+              <button
+                type="button"
+                aria-pressed={mode === 'simple'}
+                onClick={() => setMode('simple')}
+              >
+                Simple
+              </button>
+              <button
+                type="button"
+                aria-pressed={mode === 'agentic'}
+                onClick={() => setMode('agentic')}
+              >
+                Agentic
+              </button>
+            </div>
+            <label className="chat-model-select">
+              <span>Model</span>
+              <select
+                value={modelPreference}
+                onChange={(event) =>
+                  setModelPreference(event.currentTarget.value as 'auto' | 'fast' | 'strong')
+                }
+                aria-label="Model selection"
+              >
+                <option value="auto">Auto</option>
+                <option value="fast">Fast</option>
+                <option value="strong">Strong</option>
+              </select>
+            </label>
           </div>
-          <label className="chat-model-select">
-            <span>Model</span>
-            <select
-              value={modelPreference}
-              onChange={(event) =>
-                setModelPreference(event.currentTarget.value as 'auto' | 'fast' | 'strong')
-              }
-              aria-label="Model selection"
-            >
-              <option value="auto">Auto</option>
-              <option value="fast">Fast</option>
-              <option value="strong">Strong</option>
-            </select>
-          </label>
         </header>
         <div
           className="chat-message-list"

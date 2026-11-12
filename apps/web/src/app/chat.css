@@ -208,6 +208,32 @@
   border-radius: 50%;
   background: #39b684;
 }
+@media (max-width: 1100px) and (min-width: 761px) {
+  .chat-thread-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .chat-thread-heading > div:first-child {
+    flex: 1 1 100%;
+  }
+  .chat-thread-heading .eyebrow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chat-thread-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+.chat-thread-controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 9px;
+}
 .chat-mode-toggle {
   display: inline-flex;
   flex: 0 0 auto;
@@ -795,7 +821,18 @@
 }
 @media (max-width: 860px) {
   .chat-layout {
-    grid-template-columns: 235px minmax(0, 1fr);
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .chat-history {
+    padding-inline: 12px;
+  }
+  .chat-history-heading > div {
+    min-width: 0;
+  }
+  .chat-history-heading .eyebrow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .chat-main {
     padding: 18px;
@@ -816,13 +853,13 @@
     flex: 1 1 auto;
   }
 }
-@media (max-width: 700px) {
+@media (max-width: 760px) {
   .chat-layout {
     height: calc(100vh - 94px);
     height: calc(100dvh - 94px);
   }
 }
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .chat-layout {
     height: calc(100vh - 94px);
     height: calc(100dvh - 94px);
@@ -832,7 +869,7 @@
   }
   .chat-history {
     min-height: 0;
-    padding: 8px 12px;
+    padding: 7px 12px;
     border-right: 0;
     border-bottom: 1px solid #e6e9ef;
   }
@@ -845,6 +882,11 @@
   }
   .chat-history-heading h1 {
     font-size: 14px;
+  }
+  .chat-new-button {
+    min-height: 34px;
+    padding: 6px 10px;
+    font-size: 11px;
   }
   .chat-history-empty,
   .chat-back-link {
@@ -865,19 +907,24 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    flex: 0 0 auto;
-    width: max-content;
+    flex: 0 0 100%;
+    width: 100%;
     min-width: 0;
-    max-width: 84vw;
+    max-width: 100%;
     padding: 6px 8px;
     border-color: #e5e8ef;
     border-radius: 10px;
+    scroll-snap-align: start;
+  }
+  .conversation-list {
+    scroll-snap-type: x mandatory;
   }
   .conversation-select {
     display: block;
-    flex: 0 1 auto;
+    flex: 1 1 0;
     width: auto;
-    max-width: calc(84vw - 100px);
+    max-width: none;
+    text-align: left;
   }
   .conversation-select span {
     max-width: 100%;
@@ -905,13 +952,23 @@
     min-height: 0;
   }
   .chat-thread-heading {
-    min-height: 60px;
-    padding: 10px 11px;
-    gap: 8px;
-    flex-wrap: wrap;
+    min-height: 0;
+    padding: 9px 11px;
+    align-items: stretch;
+    flex-direction: column;
+    flex-wrap: nowrap;
   }
-  .chat-thread-heading > div {
-    flex: 1 1 auto;
+  .chat-thread-heading > div:first-child {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+  .chat-thread-controls {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 7px;
   }
   .chat-thread-heading h2 {
     max-width: 100%;
@@ -919,17 +976,15 @@
   }
   .chat-grounded-pill {
     flex: 0 1 auto;
-    max-width: 42%;
-    padding: 6px 7px;
+    max-width: 100%;
+    padding: 6px 8px;
     font-size: 9px;
   }
   .chat-mode-toggle {
-    order: 3;
-    margin-left: auto;
+    flex: 0 0 auto;
   }
   .chat-model-select {
-    order: 4;
-    margin-left: auto;
+    flex: 0 0 auto;
   }
   .chat-model-select select {
     min-height: 30px;
@@ -974,11 +1029,11 @@
     width: 94%;
   }
   .chat-composer {
-    margin: 0 7px max(7px, env(safe-area-inset-bottom));
-    padding: 9px 10px 8px;
+    margin: 0 7px max(6px, env(safe-area-inset-bottom));
+    padding: 7px 9px 6px;
   }
   .chat-composer textarea {
-    min-height: 40px;
+    min-height: 34px;
     font-size: 16px;
   }
   .chat-composer-footer > span {
@@ -994,6 +1049,25 @@
   }
   .chat-welcome {
     padding: 24px 10px;
+  }
+}
+@media (max-width: 460px) {
+  .chat-thread-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'grounded grounded'
+      'mode model';
+  }
+  .chat-grounded-pill {
+    grid-column: 1 / -1;
+  }
+  .chat-mode-toggle {
+    grid-column: 1;
+  }
+  .chat-model-select {
+    grid-column: 2;
+    justify-self: end;
   }
 }
 @media (prefers-reduced-motion: reduce) {

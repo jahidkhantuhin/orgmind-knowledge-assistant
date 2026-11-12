@@ -18,7 +18,8 @@
   min-width: 0;
 }
 .integration-provider-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   margin-bottom: 20px;
   padding: 5px;
@@ -27,7 +28,8 @@
   background: var(--surface);
 }
 .integration-provider-tab {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
   min-width: 0;
   min-height: 48px;
   align-items: center;
@@ -41,6 +43,7 @@
   cursor: pointer;
   font: inherit;
   font-weight: 700;
+  white-space: nowrap;
   transition:
     background 140ms ease,
     color 140ms ease,
@@ -66,6 +69,11 @@
   color: var(--accent);
   font-size: 0.68rem;
   font-weight: 800;
+}
+.integration-provider-tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .integration-provider-panel[hidden] {
   display: none;
@@ -392,6 +400,10 @@
   .integration-providers-grid {
     grid-template-columns: 1fr;
   }
+  .google-drive-card,
+  .drive-connected-list {
+    grid-column: auto;
+  }
 }
 @media (max-width: 600px) {
   .integrations-page {
@@ -413,7 +425,6 @@
     padding: 4px;
   }
   .integration-provider-tab {
-    flex: 1;
     gap: 7px;
     padding: 7px 9px;
     font-size: 0.9rem;
@@ -485,6 +496,23 @@
   .integration-role-editor {
     gap: 8px 14px;
     padding: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .integration-provider-tabs {
+    gap: 4px;
+    padding: 3px;
+  }
+  .integration-provider-tab {
+    gap: 0;
+    padding-inline: 8px;
+  }
+  .integration-provider-tab-mark {
+    display: none;
+  }
+  .integration-provider-tab-label {
+    text-align: center;
   }
 }
 

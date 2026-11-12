@@ -53,7 +53,7 @@ export function IntegrationTabs({
           <span className="integration-provider-tab-mark" aria-hidden="true">
             GH
           </span>
-          <span>GitHub</span>
+          <span className="integration-provider-tab-label">GitHub</span>
         </button>
         <button
           ref={(element) => {
@@ -72,7 +72,7 @@ export function IntegrationTabs({
           <span className="integration-provider-tab-mark drive" aria-hidden="true">
             G
           </span>
-          <span>Google Drive</span>
+          <span className="integration-provider-tab-label">Google Drive</span>
         </button>
       </div>
 
