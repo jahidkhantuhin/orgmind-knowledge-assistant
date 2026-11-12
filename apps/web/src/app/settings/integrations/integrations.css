@@ -1,7 +1,7 @@
 .integrations-page {
-  width: min(1180px, calc(100% - 48px));
+  width: min(1240px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 42px 0 80px;
+  padding: 36px 0 80px;
 }
 .integrations-page > h1 {
   margin: 8px 0;
@@ -9,15 +9,75 @@
   letter-spacing: -0.04em;
 }
 .integrations-page-lead {
+  max-width: 760px;
   margin: 0 0 28px;
   color: var(--muted);
   line-height: 1.6;
 }
-.integrations-layout {
+.integration-tabs-shell {
+  min-width: 0;
+}
+.integration-provider-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+}
+.integration-provider-tab {
+  display: inline-flex;
+  min-width: 0;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
+}
+.integration-provider-tab[aria-selected='true'] {
+  border-color: var(--line);
+  background: var(--background);
+  color: var(--foreground);
+}
+.integration-provider-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.integration-provider-tab-mark {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.integration-provider-panel[hidden] {
+  display: none;
+}
+.integration-providers-grid {
   display: grid;
   grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
   align-items: start;
   gap: 20px;
+}
+.integration-manager {
+  display: contents;
 }
 .integration-card {
   min-width: 0;
@@ -28,15 +88,10 @@
   box-shadow: 0 16px 40px rgb(18 24 38 / 4%);
 }
 .google-drive-card {
-  margin-top: 22px;
-}
-.google-drive-form .drive-file-url-field {
-  grid-column: 1 / -1;
+  grid-column: 1;
 }
 .drive-connected-list {
-  margin-top: 24px;
-  padding-top: 22px;
-  border-top: 1px solid var(--line);
+  grid-column: 2;
 }
 .integration-card-head,
 .integration-list-heading,
@@ -59,6 +114,7 @@
 .integration-card h2 {
   margin: 0;
   font-size: 1.2rem;
+  line-height: 1.3;
 }
 .integration-provider-mark {
   display: inline-grid;
@@ -124,6 +180,10 @@
   background: var(--background);
   color: var(--foreground);
 }
+.integration-form input:not([type='checkbox'])::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
 .integration-form input:focus-visible,
 .integration-manager button:focus-visible,
 .integration-manager a:focus-visible {
@@ -132,7 +192,7 @@
 }
 .integration-token-field,
 .integration-access-fieldset,
-.integration-primary-button {
+.integration-button {
   grid-column: 1 / -1;
 }
 .integration-token-field small,
@@ -164,13 +224,18 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  min-height: 32px;
+}
+.integration-access-fieldset input[type='checkbox'],
+.integration-role-editor input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
 }
 .integration-access-fieldset small {
   flex-basis: 100%;
 }
-.integration-primary-button,
-.integration-secondary-button,
-.integration-danger-button {
+.integration-button {
   min-height: 42px;
   padding: 9px 14px;
   border: 1px solid transparent;
@@ -181,16 +246,16 @@
     transform 140ms ease,
     opacity 140ms ease;
 }
-.integration-primary-button {
+.integration-button--primary {
   background: var(--accent);
   color: #fff;
 }
-.integration-secondary-button {
+.integration-button--secondary {
   border-color: var(--line);
   background: var(--surface);
   color: var(--foreground);
 }
-.integration-danger-button {
+.integration-button--danger {
   border-color: color-mix(in srgb, #d23d52 35%, var(--line));
   background: transparent;
   color: #d23d52;
@@ -220,7 +285,7 @@
 }
 .integration-empty {
   display: grid;
-  min-height: 210px;
+  min-height: 170px;
   align-content: center;
   justify-items: center;
   padding: 20px;
@@ -260,6 +325,7 @@
 }
 .integration-source-title strong,
 .integration-source-title code {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -295,6 +361,10 @@
   color: var(--accent);
   text-decoration: none;
 }
+.integration-source-meta a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .integration-error-message {
   color: #d23d52;
   font-size: 0.82rem;
@@ -319,25 +389,61 @@
   }
 }
 @media (max-width: 980px) {
-  .integrations-layout {
+  .integration-providers-grid {
     grid-template-columns: 1fr;
   }
 }
 @media (max-width: 600px) {
   .integrations-page {
-    width: min(100% - 28px, 1180px);
-    padding: 26px 0 52px;
+    width: min(100% - 28px, 1240px);
+    padding: 24px 0 48px;
+  }
+  .integrations-page > h1 {
+    font-size: clamp(1.9rem, 9vw, 2.4rem);
+  }
+  .integrations-page-lead {
+    margin-bottom: 20px;
+  }
+  .integration-providers-grid {
+    gap: 14px;
+  }
+  .integration-provider-tabs {
+    gap: 4px;
+    margin-bottom: 14px;
+    padding: 4px;
+  }
+  .integration-provider-tab {
+    flex: 1;
+    gap: 7px;
+    padding: 7px 9px;
+    font-size: 0.9rem;
+  }
+  .integration-provider-tab-mark {
+    width: 27px;
+    height: 27px;
   }
   .integration-card {
-    padding: 17px;
+    padding: 16px;
     border-radius: 16px;
+  }
+  .integration-card-head,
+  .integration-list-heading {
+    gap: 10px;
+  }
+  .integration-card-head > div {
+    min-width: 0;
+  }
+  .integration-readonly-badge {
+    padding: 6px 8px;
+    font-size: 0.72rem;
   }
   .integration-form {
     grid-template-columns: 1fr;
+    gap: 13px;
   }
   .integration-token-field,
   .integration-access-fieldset,
-  .integration-primary-button {
+  .integration-button {
     grid-column: auto;
   }
   .integration-list-heading {
@@ -357,8 +463,35 @@
   .integration-source > footer button {
     flex: 1;
   }
+  .integration-empty {
+    min-height: 140px;
+    padding: 16px;
+  }
+  .integration-source {
+    padding: 14px;
+  }
+  .integration-source > header {
+    gap: 10px;
+  }
+  .integration-source-meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
   .integration-role-editor button {
     width: 100%;
     margin-left: 0;
+  }
+  .integration-role-editor {
+    gap: 8px 14px;
+    padding: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .integration-manager button,
+  .integration-status.is-syncing i {
+    animation: none;
+    transition: none;
   }
 }

@@ -1,8 +1,13 @@
 'use client';
 
 import { useEffect, useState, type FormEvent } from 'react';
-import { GoogleDriveIntegrationSchema, type GoogleDriveIntegration } from '@orgmind/shared';
+import {
+  GoogleDriveIntegrationSchema,
+  GoogleDriveIntegrationsResponseSchema,
+  type GoogleDriveIntegration,
+} from '@orgmind/shared';
 import { useFeedback } from './feedback-provider';
+import { IntegrationButton } from './integration-button';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -41,6 +46,7 @@ export function GoogleDriveManager({
   const [fileUrl, setFileUrl] = useState('');
   const [accessRoles, setAccessRoles] = useState<Array<'member' | 'viewer'>>(['member', 'viewer']);
   const [connecting, setConnecting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [roleDrafts, setRoleDrafts] = useState<Record<string, Array<'member' | 'viewer'>>>({});
   const endpoint = `${apiUrl}/organizations/${encodeURIComponent(organizationId)}/integrations/google-drive`;
@@ -190,6 +196,36 @@ export function GoogleDriveManager({
     }
   }
 
+  async function refresh() {
+    setRefreshing(true);
+    try {
+      const response = await fetch(endpoint, {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (!response.ok)
+        throw new Error(await errorMessage(response, 'Could not refresh Google Drive files.'));
+      const { integrations: refreshed } = GoogleDriveIntegrationsResponseSchema.parse(
+        await response.json(),
+      );
+      setIntegrations(refreshed);
+      setRoleDrafts(Object.fromEntries(refreshed.map((item) => [item.id, item.accessRoles])));
+      notify({
+        kind: 'success',
+        title: 'Google Drive files refreshed',
+        description: `${refreshed.length} ${refreshed.length === 1 ? 'file' : 'files'} loaded.`,
+      });
+    } catch (error) {
+      notify({
+        kind: 'error',
+        title: 'Could not refresh Google Drive files',
+        description: error instanceof Error ? error.message : 'Try again.',
+      });
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function remove(integration: GoogleDriveIntegration) {
     if (
       !(await confirm({
@@ -221,76 +257,87 @@ export function GoogleDriveManager({
   }
 
   return (
-    <section className="integration-manager integration-card google-drive-card">
-      <div className="integration-card-head">
-        <div>
-          <span className="integration-provider-mark" aria-hidden="true">
-            G
-          </span>
-          <h2>Connect a Google Drive file</h2>
+    <div className="integration-manager google-drive-manager">
+      <section className="integration-card google-drive-card">
+        <div className="integration-card-head">
+          <div>
+            <span className="integration-provider-mark" aria-hidden="true">
+              G
+            </span>
+            <h2>Google Drive</h2>
+          </div>
+          <span className="integration-readonly-badge">Read-only</span>
         </div>
-        <span className="integration-readonly-badge">Read-only</span>
-      </div>
-      <p className="integration-description">
-        Import a PDF, DOCX, or Google Docs file. Google Docs are exported as DOCX and all files use
-        the existing document parsing and indexing pipeline.
-      </p>
-      <form
-        className="integration-form google-drive-form"
-        onSubmit={(event) => void connect(event)}
-      >
-        <label className="drive-file-url-field">
-          Google Drive file URL or ID
-          <input
-            value={fileUrl}
-            onChange={(event) => setFileUrl(event.currentTarget.value)}
-            required
-            maxLength={2000}
-            placeholder="https://drive.google.com/file/d/..."
-          />
-          <small>
-            Make sure the Google account you authorize can open this file. Folders, Sheets, Slides,
-            and other formats are not supported yet.
-          </small>
-        </label>
-        <fieldset className="integration-access-fieldset">
-          <legend>Who can search the imported file?</legend>
-          {(['member', 'viewer'] as const).map((role) => (
-            <label key={role}>
-              <input
-                type="checkbox"
-                checked={accessRoles.includes(role)}
-                onChange={() =>
-                  setAccessRoles((current) =>
-                    current.includes(role)
-                      ? current.filter((item) => item !== role)
-                      : [...current, role],
-                  )
-                }
-              />
-              {role === 'member' ? 'Members' : 'Viewers'}
-            </label>
-          ))}
-          <small>Workspace admins always retain access. You can change these roles later.</small>
-        </fieldset>
-        <button className="integration-primary-button" type="submit" disabled={connecting}>
-          {connecting ? 'Opening Google…' : 'Connect Google Drive'}
-        </button>
-      </form>
-      <p className="integration-security-note">
-        OrgMind requests read-only Drive access. The refresh token is encrypted at rest and never
-        shown; disconnecting removes the imported workspace document.
-      </p>
+        <p className="integration-description">
+          Import one PDF, DOCX, or Google Docs file. Google Docs are converted to DOCX before
+          indexing.
+        </p>
+        <form
+          className="integration-form google-drive-form"
+          onSubmit={(event) => void connect(event)}
+        >
+          <label className="drive-file-url-field">
+            Google Drive file URL or ID
+            <input
+              value={fileUrl}
+              onChange={(event) => setFileUrl(event.currentTarget.value)}
+              required
+              maxLength={2000}
+              placeholder="Paste a Google Drive file link"
+            />
+            <small>
+              The Google account you authorize must be able to open the file. Folders, Sheets, and
+              Slides are not supported.
+            </small>
+          </label>
+          <fieldset className="integration-access-fieldset">
+            <legend>Who can search the imported file?</legend>
+            {(['member', 'viewer'] as const).map((role) => (
+              <label key={role}>
+                <input
+                  type="checkbox"
+                  checked={accessRoles.includes(role)}
+                  onChange={() =>
+                    setAccessRoles((current) =>
+                      current.includes(role)
+                        ? current.filter((item) => item !== role)
+                        : [...current, role],
+                    )
+                  }
+                />
+                {role === 'member' ? 'Members' : 'Viewers'}
+              </label>
+            ))}
+            <small>Admins always retain access. You can change these roles later.</small>
+          </fieldset>
+          <IntegrationButton type="submit" disabled={connecting}>
+            {connecting ? 'Opening Google…' : 'Connect Drive file'}
+          </IntegrationButton>
+        </form>
+        <p className="integration-security-note">
+          Access is read-only. The Google refresh token is encrypted and never shown again.
+        </p>
+      </section>
 
-      <div className="drive-connected-list">
+      <section className="integration-card drive-connected-list">
         <div className="integration-list-heading">
           <div>
-            <h2>Connected Drive files</h2>
-            <p>Sync updates and manage workspace access.</p>
+            <h2>Google Drive files</h2>
+            <p>Sync changes and manage who can search each file.</p>
           </div>
-          <span>
-            {integrations.length} {integrations.length === 1 ? 'file' : 'files'}
-          </span>
+          <div className="integration-list-actions">
+            <span>
+              {integrations.length} {integrations.length === 1 ? 'file' : 'files'}
+            </span>
+            <IntegrationButton
+              variant="secondary"
+              type="button"
+              disabled={refreshing}
+              onClick={() => void refresh()}
+            >
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </IntegrationButton>
+          </div>
         </div>
         {integrations.length === 0 ? (
           <div className="integration-empty">
@@ -316,7 +363,7 @@ export function GoogleDriveManager({
                   <span className={`integration-status is-${integration.status}`}>
                     <i aria-hidden="true" />
                     {integration.status === 'ready'
-                      ? 'Imported'
+                      ? 'Synced'
                       : integration.status === 'syncing'
                         ? 'Syncing'
                         : integration.status === 'error'
@@ -359,36 +406,41 @@ export function GoogleDriveManager({
                       {role === 'member' ? 'Members' : 'Viewers'}
                     </label>
                   ))}
-                  <button
-                    className="integration-secondary-button"
+                  <IntegrationButton
+                    variant="secondary"
                     type="button"
+                    disabled={
+                      JSON.stringify(
+                        [...(roleDrafts[integration.id] ?? integration.accessRoles)].sort(),
+                      ) === JSON.stringify([...integration.accessRoles].sort()) ||
+                      busyId === integration.id
+                    }
                     onClick={() => void saveRoles(integration)}
                   >
                     Save access
-                  </button>
+                  </IntegrationButton>
                 </fieldset>
                 <footer>
-                  <button
-                    className="integration-secondary-button"
+                  <IntegrationButton
                     type="button"
                     disabled={busyId === integration.id}
                     onClick={() => void sync(integration)}
                   >
                     {busyId === integration.id ? 'Syncing…' : 'Sync now'}
-                  </button>
-                  <button
-                    className="integration-danger-button"
+                  </IntegrationButton>
+                  <IntegrationButton
+                    variant="danger"
                     type="button"
                     onClick={() => void remove(integration)}
                   >
                     Remove
-                  </button>
+                  </IntegrationButton>
                 </footer>
               </article>
             ))}
           </div>
         )}
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }

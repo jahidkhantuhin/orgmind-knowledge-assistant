@@ -4,8 +4,7 @@ import {
   GitHubIntegrationsResponseSchema,
   GoogleDriveIntegrationsResponseSchema,
 } from '@orgmind/shared';
-import { IntegrationsManager } from '../../../components/integrations-manager';
-import { GoogleDriveManager } from '../../../components/google-drive-manager';
+import { IntegrationTabs } from '../../../components/integration-tabs';
 import { WorkspaceNavigation } from '../../../components/workspace-navigation';
 import { getCurrentUser } from '../../../lib/current-user';
 
@@ -49,16 +48,13 @@ export default async function IntegrationsPage() {
         <p className="eyebrow">WORKSPACE SETTINGS</p>
         <h1>Integrations</h1>
         <p className="integrations-page-lead">
-          Bring GitHub and Google Drive files into your workspace knowledge and control who can
-          search them.
+          Connect a file, choose who can search it, then sync updates when the source changes.
+          Imported files follow the same indexing and access rules as uploaded documents.
         </p>
-        <IntegrationsManager
+        <IntegrationTabs
           organizationId={organization.organizationId}
-          initialIntegrations={integrations}
-        />
-        <GoogleDriveManager
-          organizationId={organization.organizationId}
-          initialIntegrations={driveIntegrations}
+          githubIntegrations={integrations}
+          driveIntegrations={driveIntegrations}
         />
       </main>
     </>

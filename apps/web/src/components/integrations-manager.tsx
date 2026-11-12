@@ -7,6 +7,7 @@ import {
   type GitHubIntegration,
 } from '@orgmind/shared';
 import { useFeedback } from './feedback-provider';
+import { IntegrationButton } from './integration-button';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -252,7 +253,7 @@ export function IntegrationsManager({
         { credentials: 'include', cache: 'no-store' },
       );
       if (!response.ok)
-        throw new Error(await errorMessage(response, 'Could not refresh integrations.'));
+        throw new Error(await errorMessage(response, 'Could not refresh GitHub files.'));
       const { integrations: refreshed } = GitHubIntegrationsResponseSchema.parse(
         await response.json(),
       );
@@ -260,13 +261,13 @@ export function IntegrationsManager({
       setRoleDrafts(Object.fromEntries(refreshed.map((item) => [item.id, item.accessRoles])));
       notify({
         kind: 'success',
-        title: 'Integrations refreshed',
-        description: `${refreshed.length} ${refreshed.length === 1 ? 'source' : 'sources'} loaded.`,
+        title: 'GitHub files refreshed',
+        description: `${refreshed.length} ${refreshed.length === 1 ? 'file' : 'files'} loaded.`,
       });
     } catch (cause) {
       notify({
         kind: 'error',
-        title: 'Could not refresh integrations',
+        title: 'Could not refresh GitHub files',
         description: cause instanceof Error ? cause.message : 'Try again.',
       });
     }
@@ -280,14 +281,13 @@ export function IntegrationsManager({
             <span className="integration-provider-mark" aria-hidden="true">
               GH
             </span>
-            <h2>Connect a GitHub file</h2>
+            <h2>GitHub</h2>
           </div>
           <span className="integration-readonly-badge">Read-only</span>
         </div>
         <p className="integration-description">
-          Connect a Markdown or TXT file from a repository you can access. OrgMind reads it through
-          GitHub’s read-only MCP server and sends it through the same parsing, chunking, and
-          embedding pipeline as an upload.
+          Import one Markdown or TXT file from a repository you can access. OrgMind indexes it like
+          any uploaded document.
         </p>
         <form className="integration-form" onSubmit={(event) => void create(event)}>
           <label>
@@ -341,10 +341,7 @@ export function IntegrationsManager({
               maxLength={500}
               placeholder="github_pat_…"
             />
-            <small>
-              Use a fine-grained token with read-only access to this repository. It is encrypted
-              before storage and never shown again.
-            </small>
+            <small>Use a fine-grained token with read-only repository access.</small>
           </label>
           <fieldset className="integration-access-fieldset">
             <legend>Who can read the imported file?</legend>
@@ -378,33 +375,29 @@ export function IntegrationsManager({
             </label>
             <small>Workspace admins always retain access. You can change these roles later.</small>
           </fieldset>
-          <button className="integration-primary-button" type="submit" disabled={saving}>
+          <IntegrationButton type="submit" disabled={saving}>
             {saving ? 'Connecting…' : 'Connect GitHub'}
-          </button>
+          </IntegrationButton>
         </form>
         <p className="integration-security-note">
-          OrgMind stores the token encrypted and sends it only to GitHub’s official read-only MCP
-          endpoint. Disconnecting also removes the imported document and its chunks.
+          The token is encrypted and never shown again. Disconnecting removes the imported file and
+          its indexed content.
         </p>
       </section>
 
       <section className="integration-card integration-list-card">
         <div className="integration-list-heading">
           <div>
-            <h2>Connected sources</h2>
-            <p>Sync repository content and manage its workspace access.</p>
+            <h2>GitHub sources</h2>
+            <p>Sync files and manage who can search them.</p>
           </div>
           <div className="integration-list-actions">
             <span>
               {integrations.length} {integrations.length === 1 ? 'source' : 'sources'}
             </span>
-            <button
-              className="integration-secondary-button"
-              type="button"
-              onClick={() => void refresh()}
-            >
+            <IntegrationButton variant="secondary" type="button" onClick={() => void refresh()}>
               Refresh
-            </button>
+            </IntegrationButton>
           </div>
         </div>
         {integrations.length === 0 ? (
@@ -472,8 +465,8 @@ export function IntegrationsManager({
                     Viewers
                   </label>
                   <span>Admins always have access.</span>
-                  <button
-                    className="integration-secondary-button"
+                  <IntegrationButton
+                    variant="secondary"
                     type="button"
                     disabled={
                       JSON.stringify(draftRoles(integration).sort()) ===
@@ -483,11 +476,10 @@ export function IntegrationsManager({
                     onClick={() => void saveRoles(integration)}
                   >
                     Save access
-                  </button>
+                  </IntegrationButton>
                 </fieldset>
                 <footer>
-                  <button
-                    className="integration-primary-button"
+                  <IntegrationButton
                     type="button"
                     disabled={busyId === integration.id}
                     onClick={() => void sync(integration)}
@@ -497,15 +489,15 @@ export function IntegrationsManager({
                       : integration.documentId
                         ? 'Sync now'
                         : 'Sync file'}
-                  </button>
-                  <button
-                    className="integration-danger-button"
+                  </IntegrationButton>
+                  <IntegrationButton
+                    variant="danger"
                     type="button"
                     disabled={busyId === integration.id}
                     onClick={() => void remove(integration)}
                   >
                     Disconnect
-                  </button>
+                  </IntegrationButton>
                 </footer>
               </article>
             ))}
