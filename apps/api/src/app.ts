@@ -10,6 +10,7 @@ import { env } from './config/env.js';
 import { logger } from './lib/logger.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { authRouter } from './modules/auth/auth.routes.js';
+import { googleDriveOAuthCallbackController } from './modules/integrations/google-drive.controller.js';
 import { organizationsRouter } from './modules/organizations/organizations.routes.js';
 import { errorHandler } from './middleware/errors.js';
 import { rejectMongoOperatorKeys } from './middleware/reject-nosql-operators.js';
@@ -23,6 +24,20 @@ export const app = express();
 app.disable('x-powered-by');
 app.use((req, _res, next) => {
   req.id = randomUUID();
+  next();
+});
+app.use((req, res, next) => {
+  const callbackPath = '/integrations/google-drive/callback';
+  if ((req.url ?? '').split('?')[0] === callbackPath) {
+    const callbackUrl = new URL(req.url ?? callbackPath, 'http://localhost');
+    res.locals.googleDriveOAuthQuery = {
+      code: callbackUrl.searchParams.get('code'),
+      state: callbackUrl.searchParams.get('state'),
+      error: callbackUrl.searchParams.get('error'),
+    };
+    req.url = callbackPath;
+    req.originalUrl = callbackPath;
+  }
   next();
 });
 app.use(
@@ -60,6 +75,7 @@ app.use(express.json({ limit: '1mb' }));
 app.use(rejectMongoOperatorKeys);
 app.use('/health', healthRouter);
 app.use('/auth', authRouter);
+app.get('/integrations/google-drive/callback', googleDriveOAuthCallbackController);
 app.use('/organizations', organizationsRouter);
 app.use((_req, res) => {
   res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Route not found' } });

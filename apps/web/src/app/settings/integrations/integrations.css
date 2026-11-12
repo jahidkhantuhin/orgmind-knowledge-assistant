@@ -27,6 +27,17 @@
   background: var(--surface);
   box-shadow: 0 16px 40px rgb(18 24 38 / 4%);
 }
+.google-drive-card {
+  margin-top: 22px;
+}
+.google-drive-form .drive-file-url-field {
+  grid-column: 1 / -1;
+}
+.drive-connected-list {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
 .integration-card-head,
 .integration-list-heading,
 .integration-source > header,

@@ -134,3 +134,10 @@
 - Each integration has a collection ACL, selected `member`/`viewer` visibility, admin access, status, last-sync time, and sanitized error details. ACL changes update the collection policy and all imported document/chunk ACLs. Removing a source deletes its imported document/chunks and stored integration.
 - Added migration `015-mcp-integrations`, admin-only integration management/sync/access API routes, a responsive **Settings → Integrations** page with connect, sync, refresh, access, and disconnect controls, and toast/modal feedback.
 - Added mocked MCP protocol tests for read-only file retrieval, expected tool parameters, and MCP errors. Verify with `pnpm db:migrate`, `pnpm lint`, `pnpm typecheck`, and `pnpm test`; then connect and sync a small repository file from the UI and check its workspace ACL behavior.
+
+## Step 15: Google Drive PDF and Docs integration
+
+- Added admin-only Google Drive OAuth connection for one file at a time, using the Drive read-only scope. OAuth state is single-use and expires after 10 minutes; refresh tokens are encrypted at rest with the existing integration secret mechanism.
+- Added support for Drive PDFs, DOCX files, and native Google Docs (exported to DOCX). Unsupported Drive types are rejected; downloaded content uses the configured upload-size cap and existing document ingestion queue and ACL pipeline.
+- Added manual Drive sync, content-hash change detection, workspace role access controls, disconnect/removal, a Google Drive section in **Settings → Integrations**, and migration `016-google-drive-integrations` for source and expiring OAuth state indexes.
+- Added `GOOGLE_DRIVE_CLIENT_ID` and `GOOGLE_DRIVE_CLIENT_SECRET` configuration. See README Step 15 for Google Cloud OAuth setup, supported formats, size limits, and a UI verification walkthrough.

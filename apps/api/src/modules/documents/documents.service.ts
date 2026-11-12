@@ -183,6 +183,54 @@ export const documentsService = {
     return toSummary(document);
   },
 
+  async ingestFileContent(
+    organizationId: string,
+    ownerId: string,
+    originalName: string,
+    contents: Buffer,
+    extension: Extract<DocumentExtension, 'pdf' | 'docx'>,
+    collectionId: string,
+    collectionAcl: string[],
+  ): Promise<DocumentSummary> {
+    if (contents.byteLength === 0 || contents.byteLength > env.MAX_DOCUMENT_UPLOAD_BYTES) {
+      throw new Error('The connected file is empty or exceeds the configured upload limit.');
+    }
+    await documentCollectionsRepository.set(organizationId, collectionId, collectionAcl);
+    const now = new Date();
+    const document = DocumentRecordSchema.parse({
+      _id: randomUUID(),
+      organizationId,
+      ownerId,
+      collectionId,
+      acl: [...new Set([...collectionAcl, `user:${ownerId}`])],
+      originalName: originalName.replace(/[\\/]/g, '_').slice(0, 255),
+      extension,
+      mimeType: mimeTypeForExtension(extension),
+      sizeBytes: contents.byteLength,
+      storageKey: `${randomUUID()}.${extension}`,
+      status: 'uploaded',
+      progress: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    try {
+      await localDocumentStorage.write(document.storageKey, contents);
+      await documentsRepository.create(document);
+      await documentIngestionQueue.add(
+        'ingest-document',
+        { documentId: document._id },
+        { jobId: document._id },
+      );
+    } catch (error) {
+      await documentsRepository
+        .deleteByIdInOrganization(document._id, organizationId)
+        .catch(() => null);
+      await localDocumentStorage.delete(document.storageKey).catch(() => null);
+      throw error;
+    }
+    return toSummary(document);
+  },
+
   async shareCollection(
     organizationId: string,
     collectionId: string,

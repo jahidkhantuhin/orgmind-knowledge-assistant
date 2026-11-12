@@ -48,10 +48,48 @@ import {
   syncIntegrationController,
   updateIntegrationAccessController,
 } from '../integrations/integrations.controller.js';
+import {
+  authorizeGoogleDriveController,
+  deleteGoogleDriveIntegrationController,
+  listGoogleDriveIntegrationsController,
+  syncGoogleDriveIntegrationController,
+  updateGoogleDriveAccessController,
+} from '../integrations/google-drive.controller.js';
 import { chatRateLimiter, ensureRateLimitStore } from '../../middleware/rate-limit.js';
 import { rejectMongoOperatorKeys } from '../../middleware/reject-nosql-operators.js';
 
 export const organizationsRouter = Router();
+
+organizationsRouter.get(
+  '/:organizationId/integrations/google-drive',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  listGoogleDriveIntegrationsController,
+);
+organizationsRouter.post(
+  '/:organizationId/integrations/google-drive/authorize',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  authorizeGoogleDriveController,
+);
+organizationsRouter.post(
+  '/:organizationId/integrations/google-drive/:integrationId/sync',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  syncGoogleDriveIntegrationController,
+);
+organizationsRouter.patch(
+  '/:organizationId/integrations/google-drive/:integrationId/access',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  updateGoogleDriveAccessController,
+);
+organizationsRouter.delete(
+  '/:organizationId/integrations/google-drive/:integrationId',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  deleteGoogleDriveIntegrationController,
+);
 
 organizationsRouter.get(
   '/:organizationId/integrations',

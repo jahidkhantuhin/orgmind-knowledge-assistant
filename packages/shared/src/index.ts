@@ -67,6 +67,43 @@ export const GitHubIntegrationsResponseSchema = z.object({
   integrations: z.array(GitHubIntegrationSchema),
 });
 
+export const GoogleDriveIntegrationStatusSchema = z.enum([
+  'connected',
+  'syncing',
+  'ready',
+  'error',
+]);
+export const GoogleDriveIntegrationSchema = z.object({
+  id: z.string().min(1),
+  organizationId: z.string().min(1),
+  provider: z.literal('google_drive'),
+  fileId: z.string().min(1),
+  fileName: z.string().min(1).max(255),
+  mimeType: z.string().min(1).max(128),
+  accessRoles: z.array(z.enum(['member', 'viewer'])),
+  status: GoogleDriveIntegrationStatusSchema,
+  documentId: z.string().min(1).optional(),
+  lastSyncedAt: z.string().datetime().optional(),
+  errorMessage: z.string().max(500).optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type GoogleDriveIntegration = z.infer<typeof GoogleDriveIntegrationSchema>;
+
+export const GoogleDriveIntegrationsResponseSchema = z.object({
+  integrations: z.array(GoogleDriveIntegrationSchema),
+});
+export const CreateGoogleDriveAuthorizationSchema = z.object({
+  fileUrl: z.string().trim().min(1).max(2_000),
+  accessRoles: z
+    .array(z.enum(['member', 'viewer']))
+    .max(2)
+    .default(['member', 'viewer']),
+});
+export const UpdateGoogleDriveIntegrationAccessSchema = z.object({
+  accessRoles: z.array(z.enum(['member', 'viewer'])).max(2),
+});
+
 export const OrganizationDocumentSchema = z.object({
   _id: z.string().min(1),
   name: z.string().min(2).max(100),

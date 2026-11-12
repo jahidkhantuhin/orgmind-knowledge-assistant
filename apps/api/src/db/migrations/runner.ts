@@ -18,6 +18,7 @@ import { workspaceInvitationsRepository } from '../../modules/organizations/work
 import { evalRunsRepository } from '../../modules/evals/eval-runs.repository.js';
 import { auditLogsRepository } from '../../modules/audit/audit-logs.repository.js';
 import { integrationsRepository } from '../../modules/integrations/integrations.repository.js';
+import { googleDriveRepository } from '../../modules/integrations/google-drive.repository.js';
 
 export async function runMigrations(): Promise<void> {
   const database = getDatabase();
@@ -122,6 +123,9 @@ export async function runMigrations(): Promise<void> {
   });
   await applyMigration(migrations, '015-mcp-integrations', () =>
     integrationsRepository.ensureIndexes(),
+  );
+  await applyMigration(migrations, '016-google-drive-integrations', () =>
+    googleDriveRepository.ensureIndexes(),
   );
 }
 

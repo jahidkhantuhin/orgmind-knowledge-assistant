@@ -36,6 +36,8 @@ const EnvSchema = z
       .max(12 * 1024 * 1024)
       .default(3 * 1024 * 1024),
     GOOGLE_API_KEY: z.string().default(''),
+    GOOGLE_DRIVE_CLIENT_ID: z.string().default(''),
+    GOOGLE_DRIVE_CLIENT_SECRET: z.string().default(''),
     CHAT_PROVIDER: z.enum(['google', 'ollama']).default('google'),
     OLLAMA_BASE_URL: z.url().default('http://localhost:11434'),
     OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default(''),
