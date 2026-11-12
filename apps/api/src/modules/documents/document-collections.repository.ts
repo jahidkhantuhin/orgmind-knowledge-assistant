@@ -74,6 +74,10 @@ export const documentCollectionsRepository = {
     );
   },
 
+  async delete(organizationId: string, collectionId: string): Promise<void> {
+    await collectionAccess().deleteOne({ _id: idFor(organizationId, collectionId) });
+  },
+
   async backfillFromDocuments(): Promise<void> {
     const database = getDatabase();
     const policies = await database

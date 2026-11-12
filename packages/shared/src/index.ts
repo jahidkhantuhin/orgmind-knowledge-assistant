@@ -15,6 +15,58 @@ export type HealthResponse = z.infer<typeof HealthResponseSchema>;
 export const MembershipRoleSchema = z.enum(['admin', 'member', 'viewer']);
 export type MembershipRole = z.infer<typeof MembershipRoleSchema>;
 
+export const GitHubIntegrationStatusSchema = z.enum(['connected', 'syncing', 'ready', 'error']);
+export const GitHubIntegrationSchema = z.object({
+  id: z.string().min(1),
+  organizationId: z.string().min(1),
+  provider: z.literal('github'),
+  owner: z.string().min(1),
+  repository: z.string().min(1),
+  branch: z.string().min(1),
+  path: z.string().min(1),
+  accessRoles: z.array(z.enum(['member', 'viewer'])),
+  status: GitHubIntegrationStatusSchema,
+  documentId: z.string().min(1).optional(),
+  lastSyncedAt: z.string().datetime().optional(),
+  errorMessage: z.string().max(500).optional(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type GitHubIntegration = z.infer<typeof GitHubIntegrationSchema>;
+
+export const CreateGitHubIntegrationSchema = z.object({
+  owner: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9_.-]{1,100}$/),
+  repository: z
+    .string()
+    .trim()
+    .regex(/^[A-Za-z0-9_.-]{1,100}$/),
+  branch: z.string().trim().min(1).max(255).default('main'),
+  path: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .refine((value) => !value.split('/').includes('..'), 'Path traversal is not allowed.')
+    .refine((value) => /\.(md|markdown|txt)$/i.test(value), 'Use a Markdown or TXT file path.'),
+  accessRoles: z
+    .array(z.enum(['member', 'viewer']))
+    .max(2)
+    .default([]),
+  accessToken: z.string().trim().min(1).max(500),
+});
+export type CreateGitHubIntegration = z.infer<typeof CreateGitHubIntegrationSchema>;
+
+export const UpdateGitHubIntegrationAccessSchema = z.object({
+  accessRoles: z.array(z.enum(['member', 'viewer'])).max(2),
+});
+
+export const GitHubIntegrationsResponseSchema = z.object({
+  integrations: z.array(GitHubIntegrationSchema),
+});
+
 export const OrganizationDocumentSchema = z.object({
   _id: z.string().min(1),
   name: z.string().min(2).max(100),

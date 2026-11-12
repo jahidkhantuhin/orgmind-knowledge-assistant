@@ -8,6 +8,7 @@
 @import './settings/evals/evals.css';
 @import './settings/usage/usage.css';
 @import './settings/audit/audit.css';
+@import './settings/integrations/integrations.css';
 
 :root {
   color-scheme: light;

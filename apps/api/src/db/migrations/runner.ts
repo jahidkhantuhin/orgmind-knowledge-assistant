@@ -17,6 +17,7 @@ import {
 import { workspaceInvitationsRepository } from '../../modules/organizations/workspace-invitations.repository.js';
 import { evalRunsRepository } from '../../modules/evals/eval-runs.repository.js';
 import { auditLogsRepository } from '../../modules/audit/audit-logs.repository.js';
+import { integrationsRepository } from '../../modules/integrations/integrations.repository.js';
 
 export async function runMigrations(): Promise<void> {
   const database = getDatabase();
@@ -119,6 +120,9 @@ export async function runMigrations(): Promise<void> {
         { $set: { embeddingProfile: 'google:gemini-embedding-001:768' } },
       );
   });
+  await applyMigration(migrations, '015-mcp-integrations', () =>
+    integrationsRepository.ensureIndexes(),
+  );
 }
 
 async function applyMigration(

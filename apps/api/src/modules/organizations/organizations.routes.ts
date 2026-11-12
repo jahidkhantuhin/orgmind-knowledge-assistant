@@ -41,10 +41,48 @@ import {
 import { listEvalRunsController } from '../evals/eval-runs.controller.js';
 import { getOrganizationUsageController } from '../usage/usage.controller.js';
 import { listAuditLogsController } from '../audit/audit-logs.controller.js';
+import {
+  createIntegrationController,
+  deleteIntegrationController,
+  listIntegrationsController,
+  syncIntegrationController,
+  updateIntegrationAccessController,
+} from '../integrations/integrations.controller.js';
 import { chatRateLimiter, ensureRateLimitStore } from '../../middleware/rate-limit.js';
 import { rejectMongoOperatorKeys } from '../../middleware/reject-nosql-operators.js';
 
 export const organizationsRouter = Router();
+
+organizationsRouter.get(
+  '/:organizationId/integrations',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  listIntegrationsController,
+);
+organizationsRouter.post(
+  '/:organizationId/integrations',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  createIntegrationController,
+);
+organizationsRouter.post(
+  '/:organizationId/integrations/:integrationId/sync',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  syncIntegrationController,
+);
+organizationsRouter.patch(
+  '/:organizationId/integrations/:integrationId/access',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  updateIntegrationAccessController,
+);
+organizationsRouter.delete(
+  '/:organizationId/integrations/:integrationId',
+  requireAuth,
+  requireOrganizationRole(['admin']),
+  deleteIntegrationController,
+);
 
 organizationsRouter.get(
   '/:organizationId/members',

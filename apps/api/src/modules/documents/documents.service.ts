@@ -18,6 +18,7 @@ import { documentIngestionRepository } from './document-ingestion.repository.js'
 import { localDocumentStorage, mimeTypeForExtension } from './document-storage.js';
 import { aclTokensForGrant, canReadAcl } from './document-acl.js';
 import { documentCollectionsRepository } from './document-collections.repository.js';
+import { env } from '../../config/env.js';
 
 function toSummary(document: DocumentRecord): DocumentSummary {
   return DocumentSummarySchema.parse({
@@ -131,6 +132,54 @@ export const documentsService = {
       throw error;
     }
 
+    return toSummary(document);
+  },
+
+  async ingestTextContent(
+    organizationId: string,
+    ownerId: string,
+    originalName: string,
+    contents: Buffer,
+    collectionId: string,
+    collectionAcl: string[],
+  ): Promise<DocumentSummary> {
+    if (contents.byteLength > env.MAX_DOCUMENT_TEXT_BYTES) {
+      throw new Error('The connected text file exceeds the configured document text limit.');
+    }
+    const extension = originalName.toLowerCase().endsWith('.txt') ? 'txt' : 'md';
+    const now = new Date();
+    await documentCollectionsRepository.set(organizationId, collectionId, collectionAcl);
+    const document = DocumentRecordSchema.parse({
+      _id: randomUUID(),
+      organizationId,
+      ownerId,
+      collectionId,
+      acl: [...new Set([...collectionAcl, `user:${ownerId}`])],
+      originalName: originalName.replace(/[\\/]/g, '_').slice(0, 255),
+      extension,
+      mimeType: mimeTypeForExtension(extension),
+      sizeBytes: contents.byteLength,
+      storageKey: `${randomUUID()}.${extension}`,
+      status: 'uploaded',
+      progress: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+    try {
+      await localDocumentStorage.write(document.storageKey, contents);
+      await documentsRepository.create(document);
+      await documentIngestionQueue.add(
+        'ingest-document',
+        { documentId: document._id },
+        { jobId: document._id },
+      );
+    } catch (error) {
+      await documentsRepository
+        .deleteByIdInOrganization(document._id, organizationId)
+        .catch(() => null);
+      await localDocumentStorage.delete(document.storageKey).catch(() => null);
+      throw error;
+    }
     return toSummary(document);
   },
 

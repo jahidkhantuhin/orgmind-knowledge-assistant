@@ -5,6 +5,7 @@ export type WorkspaceNavigationSection =
   | 'assistant'
   | 'knowledge'
   | 'members'
+  | 'integrations'
   | 'evals'
   | 'usage'
   | 'audit';
@@ -26,6 +27,13 @@ export const workspaceNavigationItems: WorkspaceNavigationItem[] = [
     label: 'Members',
     section: 'members',
     icon: '♙',
+    adminOnly: true,
+  },
+  {
+    href: '/settings/integrations',
+    label: 'Integrations',
+    section: 'integrations',
+    icon: '↔',
     adminOnly: true,
   },
   { href: '/settings/evals', label: 'Evals', section: 'evals', icon: '▥', adminOnly: true },
