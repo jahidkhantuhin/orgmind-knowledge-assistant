@@ -35,6 +35,7 @@ import {
   type RetrievalResult,
 } from './retrieval.service.js';
 import { LOW_CONFIDENCE_ANSWER, buildGroundedSystemPrompt } from './prompt.builder.js';
+import { isLowConfidenceAnswer } from './chat-confidence.js';
 import { aclTokensForPrincipal } from '../documents/document-acl.js';
 import { documentsRepository } from '../documents/documents.repository.js';
 import { activeTraceId, withSpan } from '../../lib/telemetry.js';
@@ -687,6 +688,11 @@ export const streamChatController: RequestHandler = async (req, res) => {
               actorEmail: requester.email,
               outcome: auditOutcome,
               question: safeQuestion,
+              lowConfidence: isLowConfidenceAnswer({
+                retrievalHadNoCitations: isLowConfidence,
+                usedCitationCount: usedCitations.length,
+                answer: content,
+              }),
               documentIds: [...auditDocuments.keys()],
               documentNames: [...auditDocuments.values()],
             }),

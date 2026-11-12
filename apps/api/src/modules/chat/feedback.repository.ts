@@ -55,7 +55,11 @@ export const feedbackRepository = {
     const baseMatch = { organizationId, createdAt: { $gte: since }, action: 'chat' };
     const unansweredMatch = {
       ...baseMatch,
-      $or: [{ outcome: 'failed' }, { documentIds: { $size: 0 } }],
+      $or: [
+        { lowConfidence: true },
+        { outcome: 'failed' },
+        { lowConfidence: { $exists: false }, documentIds: { $size: 0 } },
+      ],
     };
     const [totalQuestions, unansweredQuestions, topQuestions, knowledgeGaps] = await Promise.all([
       audit.countDocuments(baseMatch),

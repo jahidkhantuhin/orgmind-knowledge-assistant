@@ -82,6 +82,23 @@ describe('feedback repository', () => {
       knowledgeGaps: [{ question: 'Question B', count: 3 }],
       feedback: { positive: 4, negative: 1 },
     });
+    expect(mocks.audit.countDocuments).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        organizationId: 'org-1',
+        $or: expect.arrayContaining([
+          { lowConfidence: true },
+          { outcome: 'failed' },
+          { lowConfidence: { $exists: false }, documentIds: { $size: 0 } },
+        ]),
+      }),
+    );
+    expect(mocks.audit.aggregate).toHaveBeenNthCalledWith(2, [
+      { $match: expect.objectContaining({ $or: expect.any(Array) }) },
+      expect.any(Object),
+      expect.any(Object),
+      expect.any(Object),
+    ]);
   });
 
   it('exports only positive workspace feedback within the date window', async () => {

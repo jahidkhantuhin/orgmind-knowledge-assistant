@@ -74,7 +74,7 @@ export default async function AnalyticsPage() {
           </section>
           <section className="analytics-panel">
             <h2>Knowledge gaps</h2>
-            <p>Questions with no retrieved source documents.</p>
+            <p>Questions answered without usable citations or accessible source documents.</p>
             {analytics.knowledgeGaps.length ? (
               <ol>
                 {analytics.knowledgeGaps.map((item) => (

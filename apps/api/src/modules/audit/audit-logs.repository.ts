@@ -39,6 +39,7 @@ export const auditLogsRepository = {
     actorEmail: string;
     outcome: AuditLogOutcome;
     question: string;
+    lowConfidence?: boolean;
     documentIds?: string[];
     documentNames?: string[];
   }): Promise<void> {

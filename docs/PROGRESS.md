@@ -143,5 +143,5 @@
 ## Step 15: Feedback loop and admin analytics
 
 - Added per-answer thumbs up/down feedback with optional reasons, scoped to the user's own conversation and stored with the answer, question, citations, and retrieval trace. Added migration `017-chat-feedback` and upsert indexes.
-- Added admin endpoints for 30-day question, unanswered-source, low-confidence, and feedback summaries; positive feedback can be exported as a JSON eval-dataset draft covering the prior 90 days.
+- Added admin endpoints for 30-day question, unanswered-source, low-confidence, and feedback summaries; low confidence is recorded when retrieval or the final answer has no usable citations, or the assistant returns its explicit no-answer fallback, with a no-accessed-documents fallback for older audit entries. Positive feedback can be exported as a JSON eval-dataset draft covering the prior 90 days.
 - Added the admin Analytics page and message-level feedback controls. “Unanswered” and “low confidence” currently mean a failed chat or a chat audit entry with no accessed source documents; review exported examples before adding them to the golden eval dataset.

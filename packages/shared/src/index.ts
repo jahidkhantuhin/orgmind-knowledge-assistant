@@ -277,6 +277,7 @@ export const AuditLogRecordSchema = z.object({
   question: z.string().min(1).max(2_000),
   documentIds: z.array(z.string().min(1)).max(100),
   documentNames: z.array(z.string().min(1).max(255)).max(100),
+  lowConfidence: z.boolean().optional(),
   createdAt: z.date(),
 });
 export type AuditLogRecord = z.infer<typeof AuditLogRecordSchema>;
