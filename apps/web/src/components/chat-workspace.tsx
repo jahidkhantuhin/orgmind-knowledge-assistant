@@ -629,7 +629,12 @@ function ChatThread({
                   );
                   const nextSteps = oldSteps.filter((item) => item.data.id !== timelineStep.id);
                   nextSteps.push({ type: 'data-agent-step', data: timelineStep });
-                  return { ...message, parts: [...parts, ...nextSteps] };
+                  const textIndex = parts.findIndex((item) => item.type === 'text');
+                  const orderedParts =
+                    textIndex < 0
+                      ? [...parts, ...nextSteps]
+                      : [...parts.slice(0, textIndex), ...nextSteps, ...parts.slice(textIndex)];
+                  return { ...message, parts: orderedParts };
                 }),
               );
             }
