@@ -14,6 +14,12 @@ OrgMind is a company-internal knowledge assistant built around agentic retrieval
 - Adds answer feedback, knowledge-gap analytics, evaluation comparisons, audit history, and usage metrics.
 - Supports Google Gemini in hosted development and Ollama for local model operation.
 
+## Product tour
+
+See the main OrgMind workspace pages in dark mode.
+
+![OrgMind dark-mode product tour](docs/media/orgmind-feature-tour.gif)
+
 ## Architecture at a glance
 
 ```mermaid
@@ -54,9 +60,9 @@ pnpm dev
 
 Then open [http://localhost:3000](http://localhost:3000) and sign in using `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD`. `pnpm setup:local` applies database migrations and search indexes, then creates the seed admin and queues the fictional handbook, policies, and FAQs. Documents show **Ready** after the API worker finishes embedding them. The API health check is [http://localhost:4000/health](http://localhost:4000/health).
 
-### Screenshots and browser test
+### Browser test
 
-The browser test below follows the visible sign-in, upload, and cited-answer flow. Run it locally to capture a Playwright trace on failure; use the Playwright report to inspect screenshots and action history. Product screenshots can be added here after capturing them from a running local workspace.
+The browser test below follows the visible sign-in, upload, and cited-answer flow. Run it locally to capture a Playwright trace on failure; use the Playwright report to inspect screenshots and action history.
 
 ## Step 1: Monorepo foundation
 
