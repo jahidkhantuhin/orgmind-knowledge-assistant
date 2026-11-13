@@ -16,7 +16,7 @@ services:
       MONGODB_INITDB_ROOT_USERNAME: ${MONGODB_ROOT_USERNAME:-root}
       MONGODB_INITDB_ROOT_PASSWORD: ${MONGODB_ROOT_PASSWORD:-orgmind-local}
     ports:
-      - '27017:27017'
+      - '${MONGODB_PORT:-27017}:27017'
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
@@ -26,7 +26,7 @@ services:
     container_name: orgmind-knowledge-assistant-redis
     logging: *local-logging
     ports:
-      - '6379:6379'
+      - '${REDIS_PORT:-6379}:6379'
     volumes:
       - redis_data:/data
     command: ['redis-server', '--appendonly', 'yes']

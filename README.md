@@ -60,6 +60,8 @@ pnpm dev
 
 Then open [http://localhost:3000](http://localhost:3000) and sign in using `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD`. `pnpm setup:local` applies database migrations and search indexes, then creates the seed admin and queues the fictional handbook, policies, and FAQs. Documents show **Ready** after the API worker finishes embedding them. The API health check is [http://localhost:4000/health](http://localhost:4000/health).
 
+If another project uses ports 27017 or 6379, set `MONGODB_PORT=27018` and `REDIS_PORT=6380` in `.env`. Update the port in `MONGODB_URI` to 27018 and in `REDIS_URL` to 6380 for commands run on your host, then rerun `docker compose up -d --wait`. The Compose `app` profile uses the internal service ports automatically.
+
 ### Browser test
 
 The browser test below follows the visible sign-in, upload, and cited-answer flow. Run it locally to capture a Playwright trace on failure; use the Playwright report to inspect screenshots and action history.
