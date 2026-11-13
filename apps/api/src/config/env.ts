@@ -3,8 +3,8 @@ import { z } from 'zod';
 const EnvSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-    API_PORT: z.coerce.number().int().positive().default(4000),
-    WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
+    API_PORT: z.coerce.number().int().positive().default(4001),
+    WEB_ORIGIN: z.string().url().default('http://localhost:3001'),
     MONGODB_URI: z
       .string()
       .min(1)
@@ -14,7 +14,7 @@ const EnvSchema = z
     MONGODB_DATABASE: z.string().min(1).default('orgmind'),
     REDIS_URL: z.string().min(1).default('redis://localhost:6379'),
     TEST_MONGODB_DATABASE: z.string().min(1).default('orgmind_test'),
-    BETTER_AUTH_URL: z.string().url().default('http://localhost:4000'),
+    BETTER_AUTH_URL: z.string().url().default('http://localhost:4001'),
     BETTER_AUTH_SECRET: z
       .string()
       .min(32)

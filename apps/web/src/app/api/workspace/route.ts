@@ -2,7 +2,7 @@ import { AuthMeResponseSchema } from '@orgmind/shared';
 import { NextResponse, type NextRequest } from 'next/server';
 
 const apiUrl =
-  process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+  process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 export async function POST(request: NextRequest) {
   const input: unknown = await request.json().catch(() => null);

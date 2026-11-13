@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useFeedback } from './feedback-provider';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 export function SignOutButton() {
   const router = useRouter();

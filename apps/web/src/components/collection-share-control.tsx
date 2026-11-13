@@ -11,7 +11,7 @@ import {
   type TeamGroup,
 } from '@orgmind/shared';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 const allRoles: MembershipRole[] = ['admin', 'member', 'viewer'];
 
 export function CollectionShareControl({

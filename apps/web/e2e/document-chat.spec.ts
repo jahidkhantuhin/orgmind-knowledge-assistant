@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdir } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 const email = process.env.SEED_ADMIN_EMAIL ?? 'admin@orgmind.local';
 const password = process.env.SEED_ADMIN_PASSWORD ?? 'ChangeThisPassword123!';
 
@@ -19,7 +19,7 @@ test('admin can sign in, upload a document, and receive a cited answer', async (
     await page.getByLabel('Work email').fill(email);
     await page.getByLabel('Password').fill(password);
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page).toHaveURL('http://localhost:3000/');
+    await expect(page).toHaveURL('http://localhost:3001/');
 
     await page.locator('a[href="/knowledge"]').first().click();
     const uploadResponsePromise = page.waitForResponse((response) => {

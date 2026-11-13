@@ -15,7 +15,7 @@ import { WorkspaceNavigation } from './workspace-navigation';
 import { useFeedback } from './feedback-provider';
 import { watchDocumentProcessing } from './document-processing';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 function labelForStatus(status: DocumentSummary['status']): string {
   switch (status) {

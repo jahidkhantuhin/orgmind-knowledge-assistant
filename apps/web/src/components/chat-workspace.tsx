@@ -21,7 +21,7 @@ import {
 import { WorkspaceNavigation } from './workspace-navigation';
 import { useFeedback } from './feedback-provider';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 type OrgMindMessage = {
   id: string;
   role: 'user' | 'assistant';

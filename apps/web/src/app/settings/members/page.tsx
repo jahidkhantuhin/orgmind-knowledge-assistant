@@ -12,7 +12,7 @@ import { AddWorkspaceMemberForm } from '../../../components/add-workspace-member
 import { WorkspaceMembersManager } from '../../../components/workspace-members-manager';
 
 const apiUrl =
-  process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+  process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 export default async function MembersPage() {
   const currentUser = await getCurrentUser();

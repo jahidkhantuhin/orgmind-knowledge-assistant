@@ -4,7 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { type OrganizationMember, type TeamGroup } from '@orgmind/shared';
 import { useFeedback } from './feedback-provider';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 export function TeamGroupsPanel({
   organizationId,

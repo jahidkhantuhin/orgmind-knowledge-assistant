@@ -9,7 +9,7 @@ import { WorkspaceNavigation } from '../../../components/workspace-navigation';
 import { getCurrentUser } from '../../../lib/current-user';
 
 const apiUrl =
-  process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+  process.env.API_INTERNAL_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 export default async function IntegrationsPage() {
   const currentUser = await getCurrentUser();

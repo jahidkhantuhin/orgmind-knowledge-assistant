@@ -13,7 +13,7 @@ import { CollectionShareControl } from './collection-share-control';
 import { useFeedback } from './feedback-provider';
 import { watchDocumentProcessing } from './document-processing';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

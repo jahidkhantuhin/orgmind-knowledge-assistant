@@ -12,21 +12,21 @@ export default defineConfig({
   timeout: 6 * 60 * 1000,
   expect: { timeout: 30_000 },
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://localhost:3001',
     trace: 'retain-on-failure',
     ...devices['Desktop Chrome'],
   },
   webServer: [
     {
       command: 'pnpm --filter @orgmind/api dev',
-      url: 'http://localhost:4000/health',
+      url: 'http://localhost:4001/health',
       reuseExistingServer: false,
       timeout: 120_000,
       env: { NODE_ENV: 'test' },
     },
     {
       command: 'pnpm --filter @orgmind/web dev',
-      url: 'http://localhost:3000/login',
+      url: 'http://localhost:3001/login',
       reuseExistingServer: false,
       timeout: 120_000,
       env: { NODE_ENV: 'development' },

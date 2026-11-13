@@ -1,7 +1,7 @@
 import { OrganizationDocumentsResponseSchema, type DocumentSummary } from '@orgmind/shared';
 import type { ToastUpdater } from './feedback-provider';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 function progressFor(document: DocumentSummary) {
   if (document.progress !== undefined) return document.progress;

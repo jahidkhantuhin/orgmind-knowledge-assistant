@@ -5,7 +5,7 @@ import { HealthResponseSchema } from '@orgmind/shared';
 
 async function readHealth() {
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'}/health`,
+    `${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001'}/health`,
     { cache: 'no-store' },
   );
   const payload: unknown = await response.json();

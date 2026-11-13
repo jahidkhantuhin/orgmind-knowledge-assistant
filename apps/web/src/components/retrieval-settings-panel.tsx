@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { RetrievalSettingsResponseSchema, type RetrievalSettingsResponse } from '@orgmind/shared';
 import { useFeedback } from './feedback-provider';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 export function RetrievalSettingsPanel({
   organizationId,

@@ -9,7 +9,7 @@ import {
 import { useFeedback } from './feedback-provider';
 import { IntegrationButton } from './integration-button';
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4001';
 
 async function errorMessage(response: Response, fallback: string): Promise<string> {
   const payload: unknown = await response.json().catch(() => null);
