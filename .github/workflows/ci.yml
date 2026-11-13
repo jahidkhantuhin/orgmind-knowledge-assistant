@@ -35,3 +35,39 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm build
+  browser-e2e:
+    # Enable this job by setting the repository variable RUN_PLAYWRIGHT_E2E=true
+    # and adding GOOGLE_API_KEY as an Actions secret.
+    if: ${{ vars.RUN_PLAYWRIGHT_E2E == 'true' }}
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.28.10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Verify Google API key is configured
+        run: test -n "$GOOGLE_API_KEY"
+      - run: pnpm install --frozen-lockfile
+      - run: cp .env.example .env
+      - run: docker compose up -d --wait
+      - run: pnpm db:migrate
+      - run: pnpm db:search-indexes
+      - run: pnpm db:seed
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            docs/screenshots/assistant-cited-answer.png
+          retention-days: 14

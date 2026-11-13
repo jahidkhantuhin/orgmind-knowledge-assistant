@@ -7,9 +7,9 @@
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "lint": "eslint src next.config.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "lint": "eslint src next.config.ts playwright.config.ts e2e",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.e2e.json",
+    "test": "vitest run --passWithNoTests --exclude=e2e/**"
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.168",

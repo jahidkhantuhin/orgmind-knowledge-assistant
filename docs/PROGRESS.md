@@ -145,3 +145,11 @@
 - Added per-answer thumbs up/down feedback with optional reasons, scoped to the user's own conversation and stored with the answer, question, citations, and retrieval trace. Added migration `017-chat-feedback` and upsert indexes.
 - Added admin endpoints for 30-day question, unanswered-source, low-confidence, and feedback summaries; low confidence is recorded when retrieval or the final answer has no usable citations, or the assistant returns its explicit no-answer fallback, with a no-accessed-documents fallback for older audit entries. Positive feedback can be exported as a JSON eval-dataset draft covering the prior 90 days.
 - Added the admin Analytics page and message-level feedback controls. “Unanswered” and “low confidence” currently mean a failed chat or a chat audit entry with no accessed source documents; review exported examples before adding them to the golden eval dataset.
+
+## Step 16: Polish and release
+
+- Expanded the idempotent admin seed to queue fictional Northwind Logistics employee handbook, workplace/IT policy, and FAQ documents through the existing upload ingestion pipeline.
+- Added a Playwright Test browser scenario for seed-admin login, Markdown upload, completed ingestion, a grounded chat question, and a visible citation. The test uses the isolated `TEST_MONGODB_DATABASE` and removes its uploaded document after the run.
+- Added a four-command quick start, feature list, GitHub Actions/license/Node badges, Mermaid system diagram, evaluation comparison reference, roadmap, author link placeholders, and release notes to README.
+- Added `docs/ARCHITECTURE.md` with application/data flows and `docs/DECISIONS.md` with author-attributed ADRs for Express 5, native MongoDB hybrid search, BullMQ, model providers, and the Simple/Agentic RAG trade-off. Updated contributor maintainer information; the MIT license already names Jahid Khan Tuhin.
+- Added an optional GitHub Actions Playwright job. It is enabled by `RUN_PLAYWRIGHT_E2E=true` and requires the `GOOGLE_API_KEY` repository secret; regular CI remains model-key independent.

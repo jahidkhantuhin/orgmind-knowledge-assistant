@@ -1,6 +1,62 @@
 # OrgMind
 
+[![CI](https://github.com/jahidkhantuhin/orgmind-knowledge-assistant/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jahidkhantuhin/orgmind-knowledge-assistant/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-22%2B-green.svg)](https://nodejs.org/)
+
 OrgMind is a company-internal knowledge assistant built around agentic retrieval-augmented generation (RAG). It is designed to help teams find trustworthy answers grounded in the information their organization already owns.
+
+## What it does
+
+- Organizes company documents by workspace, folder, role, group, and person-level access.
+- Ingests PDF, DOCX, Markdown, and TXT uploads, plus selected GitHub and Google Drive files.
+- Answers questions with MongoDB hybrid search, optional reranking, citations, and bounded Agentic RAG.
+- Adds answer feedback, knowledge-gap analytics, evaluation comparisons, audit history, and usage metrics.
+- Supports Google Gemini in hosted development and Ollama for local model operation.
+
+## Architecture at a glance
+
+```mermaid
+flowchart LR
+  User[Workspace user] --> Web[Next.js web app]
+  Web --> API[Express 5 API]
+  API --> Auth[Better Auth and RBAC]
+  API --> Mongo[(MongoDB Atlas Local / MongoDB)]
+  API --> Redis[(Redis)]
+  Redis --> Worker[BullMQ ingestion worker]
+  Worker --> Files[Local document storage]
+  Worker --> Mongo
+  API --> Search[MongoDB Search + Vector Search]
+  Search --> API
+  API --> Models[Gemini or Ollama]
+  API --> Rerank[Cohere reranker, optional]
+  GitHub[GitHub MCP] --> API
+  Drive[Google Drive API] --> API
+```
+
+See [Architecture](docs/ARCHITECTURE.md) for the request and ingestion flows and [Architecture decisions](docs/DECISIONS.md) for the trade-offs behind Express 5 and MongoDB native hybrid search.
+
+### Key design trade-offs
+
+- **Why Express 5:** a familiar, lightweight API layer with native async error propagation; OrgMind keeps explicit validation and route/controller/service/repository boundaries instead of adopting a heavier framework convention set.
+- **Why MongoDB native hybrid search:** vector and keyword search can apply organization and ACL filters inside each leg, with chunks and app data managed in the same database. The trade-off is dependency on MongoDB Search/Vector Search indexes; there is no automatic search-provider fallback.
+
+## Quick start
+
+Requirements: Node.js 22.13+, pnpm 11.28.10, and Docker Compose. Copy `.env.example` to `.env` and set `GOOGLE_API_KEY` before processing documents. The local seed credentials are described in `.env.example`; replace the sample password before sharing the environment.
+
+```powershell
+docker compose up -d --wait
+pnpm install
+pnpm setup:local
+pnpm dev
+```
+
+Then open [http://localhost:3000](http://localhost:3000) and sign in using `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD`. `pnpm setup:local` applies database migrations and search indexes, then creates the seed admin and queues the fictional handbook, policies, and FAQs. Documents show **Ready** after the API worker finishes embedding them. The API health check is [http://localhost:4000/health](http://localhost:4000/health).
+
+### Screenshots and browser test
+
+The browser test below follows the visible sign-in, upload, and cited-answer flow. Run it locally to capture a Playwright trace on failure; use the Playwright report to inspect screenshots and action history. Product screenshots can be added here after capturing them from a running local workspace.
 
 ## Step 1: Monorepo foundation
 
@@ -100,7 +156,7 @@ For document access, create a team group and assign the invited account to it. U
 
 ## Step 9: Evaluation harness
 
-The evaluation harness compares three retrieval strategies against a small golden dataset: vector-only, hybrid, and hybrid with Cohere reranking. It measures source-document recall@K and MRR, then uses the configured Gemini chat model as an LLM judge for faithfulness/groundedness and answer relevance. **Starting an evaluation is developer-operated through `pnpm eval:seed` and `pnpm eval`; admins cannot launch runs from the UI.** The admin-only **Evals** page displays recent runs already saved for the current workspace. Each run is stored in MongoDB's `evalRuns` collection.
+The evaluation harness compares four strategies against a small golden dataset: vector-only, hybrid, hybrid with Cohere reranking, and Agentic RAG. It measures source-document recall@K and MRR, then uses the configured Gemini chat model as an LLM judge for faithfulness/groundedness and answer relevance. **Starting an evaluation is developer-operated through `pnpm eval:seed` and `pnpm eval`; admins cannot launch runs from the UI.** The admin-only **Evals** page displays recent runs already saved for the current workspace. Each run is stored in MongoDB's `evalRuns` collection.
 
 Evaluation fixtures create two visible Markdown documents in the selected workspace. Use a dedicated workspace so these test policies do not mix with ordinary company documents. Find the workspace `_id` in MongoDB Compass under `organizations` and set it as `EVAL_ORGANIZATION_ID` in `.env`. To evaluate a different workspace, a developer changes this value and runs the CLI again; the configured seed-admin account must be an admin in that workspace. This is a developer-operated workflow, not a per-workspace self-service evaluation feature. Ensure `GOOGLE_API_KEY` and `COHERE_API_KEY` are configured; evaluation makes model and reranker requests and can consume their quotas.
 
@@ -137,24 +193,7 @@ The **Passed** badge checks configured recall thresholds: hybrid and agentic mus
 
 No metric values are committed as a benchmark because they depend on the workspace's MongoDB indexes, configured model, and provider responses. The lightweight CI eval uses fixed in-memory fixtures and a recall regression threshold; it makes no Gemini or Cohere requests. Run `pnpm eval:smoke` locally to execute the same CI check.
 
-## Quick start
-
-Requirements: Node.js 22.13+, pnpm 11.28+, and Docker Compose.
-
-```sh
-docker compose up -d --wait
-pnpm install
-pnpm db:migrate
-pnpm db:search-indexes
-pnpm db:seed
-pnpm dev
-```
-
-If you do not already have a local `.env` file, copy `.env.example` to `.env` before starting the services. Keep your local `.env` values when updating the example.
-
-Open [http://localhost:3000](http://localhost:3000). The API status badge should show “API operational” after MongoDB and Redis are healthy. API health is available at [http://localhost:4000/health](http://localhost:4000/health).
-
-### View development logs in Docker Compose
+## Development logs in Docker Compose
 
 The default `pnpm dev` command runs the API and web app on the host, so Docker Compose cannot display those application logs. To run the apps in Compose instead, use the optional `app` profile (do not run `pnpm dev` at the same time because both use ports 3000 and 4000):
 
@@ -313,3 +352,38 @@ Admins can export positively rated answers from the prior 90 days as a JSON eval
 ## Author
 
 Jahid Khan Tuhin, Full Stack JavaScript Engineer
+
+- GitHub: _add profile link_
+- LinkedIn: _add profile link_
+- Email: _add contact address_
+
+## Roadmap
+
+- Add production object storage and document retention controls.
+- Add scheduled connector sync and more source types.
+- Expand automated browser coverage and evaluate against a broader, independently reviewed question set.
+- Harden deployment guidance for managed MongoDB, Redis, secrets, backups, and monitoring.
+
+## Step 16: Polish and release
+
+`pnpm db:seed` is idempotent and now queues three fictional Northwind Logistics Markdown sources: an employee handbook, workplace/IT policies, and FAQs. They use the same storage, BullMQ, parsing, chunking, embedding, ACL, and indexing pipeline as user-uploaded documents. Set `GOOGLE_API_KEY` before expecting seeded documents to become Ready when using Gemini embeddings.
+
+The Playwright Test flow signs in with the seed administrator, uploads a unique Markdown file, waits for ingestion to reach **Ready**, asks a question whose answer appears in that file, and checks that a citation chip is shown. It deletes its uploaded document afterward. The test uses `TEST_MONGODB_DATABASE` (default `orgmind_test`), so run the setup commands below with `NODE_ENV=test`; it still uses your configured MongoDB Search indexes, Redis, and Google API key. The browser test calls the real app and model and can consume Gemini quota. It saves a full-page cited-answer screenshot to `docs/screenshots/assistant-cited-answer.png`; failed runs also retain a Playwright trace. Stop a running `pnpm dev` process before executing the browser test because Playwright starts its own API and web servers. CI runs it only when repository variable `RUN_PLAYWRIGHT_E2E=true` and secret `GOOGLE_API_KEY` are configured.
+
+The screenshot is produced by the browser test after a successful run:
+
+![OrgMind assistant answer with a source citation](docs/screenshots/assistant-cited-answer.png)
+
+```powershell
+$env:NODE_ENV = 'test'
+pnpm db:migrate
+pnpm db:search-indexes
+pnpm db:seed
+pnpm exec playwright install chromium
+pnpm test:e2e
+Remove-Item Env:NODE_ENV
+```
+
+Expected result: one passing browser test and the cited-answer screenshot above; the trace/report is available under `apps/web/test-results` or `apps/web/playwright-report` when Playwright reports a failure. For a fresh demo workspace, run `pnpm db:seed` under your normal development environment and wait for the three Northwind documents to show **Ready** in Knowledge base.
+
+The local quality gate is `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build`. GitHub Actions additionally runs the fixed-fixture evaluation smoke check. The optional browser job is gated because it needs a real Google API key and Atlas Local Search/Vector Search indexes.

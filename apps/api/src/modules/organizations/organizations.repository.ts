@@ -99,4 +99,9 @@ export const organizationsRepository = {
       .toArray();
     return rows.map(parseDocument);
   },
+
+  async findOwnedBy(ownerId: string): Promise<OrganizationDocument | null> {
+    const row = await organizations().findOne({ ownerId });
+    return row ? parseDocument(row) : null;
+  },
 };

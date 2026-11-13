@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "pnpm --parallel --filter @orgmind/api --filter @orgmind/web dev",
+    "setup:local": "pnpm db:migrate && pnpm db:search-indexes && pnpm db:seed",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
@@ -19,12 +20,14 @@
     "eval:seed": "pnpm --filter @orgmind/api eval:seed",
     "eval": "pnpm --filter @orgmind/api eval",
     "eval:smoke": "pnpm --filter @orgmind/evals smoke",
+    "test:e2e": "node --env-file=.env node_modules/@playwright/test/cli.js test --config apps/web/playwright.config.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
+    "@playwright/test": "^1.65.0",
     "eslint": "9.39.1",
     "eslint-config-next": "16.4.5",
     "globals": "16.5.0",
